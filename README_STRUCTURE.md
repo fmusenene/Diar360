@@ -111,8 +111,8 @@ require_once __DIR__ . '/include/footer.php';
 ### Using Configuration
 
 ```php
-echo SITE_NAME;        // Outputs: Constructo
-echo SITE_EMAIL;       // Outputs: info@example.com
+echo SITE_NAME;        // Outputs: Diar 360
+echo SITE_EMAIL;       // Outputs: info@diar360.com
 echo ASSETS_PATH;      // Outputs: /assets
 ```
 

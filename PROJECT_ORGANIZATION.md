@@ -82,9 +82,9 @@ require_once __DIR__ . '/include/footer.php';
 
 #### Using Configuration:
 ```php
-echo SITE_NAME;      // Constructo
-echo SITE_EMAIL;     // info@example.com
-echo SITE_PHONE;     // +1 5589 55488 55
+echo SITE_NAME;      // Diar 360
+echo SITE_EMAIL;     // info@diar360.com
+echo SITE_PHONE;     // +966 1 1 296 7735
 echo ASSETS_PATH;    // /assets
 ```
 

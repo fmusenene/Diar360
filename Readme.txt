@@ -31,11 +31,6 @@ Project structure (high level)
 - `functions/` – Helper and language functions
 - `assets/` – CSS, JS, images, and vendor libraries
 
-Notes
------
-- The initial layout was based on the **Constructo** Bootstrap template from BootstrapMade, and has been heavily customized for Diar 360’s branding, content, and bilingual requirements.
-- All template credits and licensing obligations are handled via the purchased Pro license from BootstrapMade.
-
 To run locally
 --------------
 1. Place the project under your local web root (e.g. `C:\xampp\htdocs\diar360`).

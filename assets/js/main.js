@@ -1,9 +1,8 @@
 /**
-* Template Name: Constructo
-* Template URL: https://bootstrapmade.com/constructo-bootstrap-construction-template/
-* Updated: Aug 30 2025 with Bootstrap v5.3.8
-* Author: BootstrapMade.com
-* License: https://bootstrapmade.com/license/
+* Project: Diar 360 Corporate Website
+* Description: Custom JS for Diar 360 bilingual (EN/AR) construction site
+* Updated: Jan 2026
+* Author: Diar 360 Web Team
 */
 
 (function() {

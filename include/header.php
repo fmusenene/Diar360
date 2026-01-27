@@ -449,11 +449,10 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
   </style>
 
   <!-- =======================================================
-  * Template Name: Constructo
-  * Template URL: https://bootstrapmade.com/constructo-bootstrap-construction-template/
-  * Updated: Aug 30 2025 with Bootstrap v5.3.8
-  * Author: BootstrapMade.com
-  * License: https://bootstrapmade.com/license/
+  * Project: Diar 360 Corporate Website
+  * Description: Bilingual (EN/AR) construction & facility management website
+  * Updated: <?php echo date('M d Y'); ?> with Bootstrap v5.3.8
+  * Author: Diar 360 Web Team
   ======================================================== -->
 </head>
 

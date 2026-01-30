@@ -39,9 +39,11 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
   <meta name="description" content="">
   <meta name="keywords" content="">
 
-  <!-- Favicons -->
-  <link href="<?php echo ASSETS_PATH; ?>/img/favicon.png" rel="icon">
-  <link href="<?php echo ASSETS_PATH; ?>/img/apple-touch-icon.png" rel="apple-touch-icon">
+  <!-- Favicons - Diar 360 logo -->
+  <!-- Update assets/img/favicon.png with your Diar 360 logo (recommended 64x64 or 512x512 PNG) -->
+  <link rel="icon" type="image/png" href="<?php echo ASSETS_PATH; ?>/img/favicon.png?v=2">
+  <link rel="shortcut icon" type="image/png" href="<?php echo ASSETS_PATH; ?>/img/favicon.png?v=2">
+  <link rel="apple-touch-icon" href="<?php echo ASSETS_PATH; ?>/img/favicon.png?v=2">
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect">
@@ -204,14 +206,14 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       display: flex;
       align-items: center;
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 25px;
+      border-radius: 50px;
       padding: 3px;
-      gap: 0;
+      gap: 2px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.2);
       transition: all 0.3s ease;
-      width: 130px;
+      width: 110px;
       flex-shrink: 0;
     }
     
@@ -224,18 +226,19 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 7px 12px;
-      border-radius: 20px;
+      gap: 4px;
+      padding: 6px 14px;
+      min-width: 44px;
+      border-radius: 50px;
       text-decoration: none;
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 13px;
-      font-weight: 500;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       flex: 1;
       white-space: nowrap;
-      overflow: hidden;
+      overflow: visible;
       text-align: center;
     }
     
@@ -255,10 +258,16 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     }
     
     .lang-option i {
-      font-size: 15px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
+      font-size: 12px;
+      line-height: 1;
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
       align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0.95;
     }
     
     .lang-option:hover {
@@ -268,7 +277,8 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     }
     
     .lang-option:hover i {
-      transform: scale(1.15) rotate(5deg);
+      opacity: 1;
+      transform: scale(1.08);
     }
     
     .lang-option.active {
@@ -281,7 +291,8 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     
     .lang-option.active i {
       color: #14529d;
-      transform: scale(1.1);
+      opacity: 1;
+      transform: scale(1.05);
     }
     
     .lang-option.active:hover {
@@ -293,6 +304,11 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       letter-spacing: 0.5px;
       position: relative;
       z-index: 1;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    .lang-option.active span {
+      text-shadow: none;
     }
     
     /* Mobile Language Switcher */
@@ -305,7 +321,7 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     }
     
     .language-switcher-mobile .lang-switch-container {
-      width: 100px;
+      width: 110px;
     }
     
     /* RTL support for mobile language switcher */
@@ -317,42 +333,55 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     /* Mobile responsive */
     @media (max-width: 768px) {
       .lang-switch-container {
-        padding: 2px;
-        width: 110px;
+        padding: 3px;
+        gap: 2px;
+        width: 108px;
       }
       
       .lang-option {
-        padding: 6px 10px;
+        padding: 5px 12px;
+        min-width: 42px;
         font-size: 12px;
+        font-weight: 600;
       }
       
       .lang-option i {
-        font-size: 13px;
+        font-size: 11px;
+        width: 12px;
+        height: 12px;
       }
       
       .language-switcher-mobile .lang-switch-container {
-        width: 90px;
+        width: 98px;
       }
       
       /* Adjust contact info on mobile to make room for language switcher */
       .topbar .contact-info {
-        padding-right: 110px;
+        padding-right: 95px;
       }
       
       body[dir="rtl"] .topbar .contact-info {
         padding-right: 0;
-        padding-left: 110px;
+        padding-left: 95px;
       }
     }
     
     @media (max-width: 576px) {
       .language-switcher-mobile .lang-switch-container {
-        width: 85px;
+        width: 92px;
       }
       
       .language-switcher-mobile .lang-option {
-        padding: 5px 8px;
+        padding: 5px 10px;
+        min-width: 38px;
         font-size: 11px;
+        font-weight: 600;
+      }
+      
+      .language-switcher-mobile .lang-option i {
+        font-size: 10px;
+        width: 11px;
+        height: 11px;
       }
       
       .topbar .contact-info {

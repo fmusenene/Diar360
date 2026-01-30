@@ -44,7 +44,24 @@
         mobileNavToogle();
       }
     });
+  });
 
+  /**
+   * Close mobile nav when clicking outside the menu content
+   * (e.g. on the dark overlay or anywhere else on the page)
+   */
+  document.addEventListener('click', (event) => {
+    const body = document.querySelector('body');
+    const navMenu = document.querySelector('#navmenu');
+    if (!body.classList.contains('mobile-nav-active') || !navMenu) return;
+
+    const isToggle = event.target.closest('.mobile-nav-toggle');
+    const isMenuContent = event.target.closest('#navmenu ul');
+
+    // If click is not on the toggle button and not inside the menu list, close the mobile nav
+    if (!isToggle && !isMenuContent) {
+      mobileNavToogle();
+    }
   });
 
   /**

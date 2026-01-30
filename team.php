@@ -30,6 +30,42 @@ require_once __DIR__ . '/functions/language.php';
 
       <div class="container" data-aos="fade-up" data-aos-delay="100">
 
+        <!-- CEO Message Block - left column behaves like David Chen card (image + hover overlay + summary below) -->
+        <div class="ceo-block team-card featured" data-aos="fade-up" data-aos-delay="50">
+          <div class="row g-0">
+            <div class="col-lg-4">
+              <div class="ceo-block-card team-card compact">
+                <div class="ceo-block-image member-photo">
+                  <img src="<?php echo ASSETS_PATH; ?>/img/construction/CEO.webp" class="img-fluid" alt="Khalil Awada - CEO">
+                  <div class="hover-overlay">
+                    <div class="overlay-content">
+                      <h5>Khalil Awada</h5>
+                      <span><?php echo t('ceo'); ?></span>
+                      <div class="quick-contact">
+                        <a href="#"><i class="bi bi-linkedin"></i></a>
+                        <a href="#"><i class="bi bi-twitter-x"></i></a>
+                        <a href="#"><i class="bi bi-envelope"></i></a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-8">
+              <div class="ceo-block-content">
+                <h2 class="ceo-heading"><?php echo t('as_stated_by'); ?> Construction Week Saudi</h2>
+                <div class="ceo-message">
+                  <p>Khalil Awada is a seasoned leader with a dynamic career spanning multiple industries. A graduate in Business Administration and Marketing from the Lebanese American University (LAU), he began his professional journey in advertising and marketing in 2006. His success led to a role as Marketing Manager at British American Tobacco from 2008 to 2010.</p>
+                  <p>In Riyadh, Awada transitioned into the construction and contracting sector with Spectrom Engineering Solutions, rising from Commercial Director to Managing Director. During his tenure, he strengthened client relationships and ensured the successful execution of complex projects across Saudi Arabia.</p>
+                  <p>In 2022, Awada co-founded Abnia Innovative Limited, aligning with Saudi Arabia's Vision 2030. There, he applied his expertise to drive innovation in the evolving construction landscape. By 2024, Awada took the helm at Diar 360, leading its transformation journey.</p>
+                  <p>At Diar 360, Awada emphasizes client success through cutting-edge civil construction, industrial automation, and turnkey electromechanical projects. Under his leadership, the company integrates the latest technologies with a steadfast commitment to safety, quality, and sustainability, aligning with the Saudi Green Initiative.</p>
+                  <p>Diar's vision reflects Awada's dedication to shaping a prosperous, environmentally responsible future for Saudi Arabia, ensuring every project contributes meaningfully to the kingdom's transformation. With a focus on innovation, excellence, and sustainable growth, Diar 360 is a trusted partner in building the nation's future.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- End CEO Block -->
+
         <div class="row gy-4">
 
           <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">

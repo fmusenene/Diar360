@@ -361,15 +361,22 @@ h6 {
     display: none;
     list-style: none;
     position: absolute;
-    inset: 60px 20px 20px 20px;
+    top: 60px;
+    right: 20px;
+    left: 20px;
     padding: 10px 0;
     margin: 0;
-    border-radius: 6px;
-    background-color: var(--nav-mobile-background-color);
+    border-radius: 16px;
+    /* Semi-transparent white with blur for a frosted-glass effect */
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    /* Let the menu height follow its content instead of filling the full viewport */
+    max-height: calc(100vh - 80px);
     overflow-y: auto;
     transition: 0.3s;
     z-index: 9998;
-    box-shadow: 0px 0px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 0px 24px rgba(0, 0, 0, 0.18);
   }
 
   .navmenu a,
@@ -459,7 +466,8 @@ h6 {
     position: fixed;
     overflow: hidden;
     inset: 0;
-    background: rgba(33, 37, 41, 0.8);
+    /* Lighter, more transparent overlay so page content stays visible */
+    background: rgba(33, 37, 41, 0.35);
     transition: 0.3s;
   }
 
@@ -2545,6 +2553,104 @@ section,
   .team .team-card.compact .member-summary .skills .skill-tag {
     font-size: 10px;
     padding: 3px 8px;
+  }
+}
+
+/* CEO Block - left column: image only, elongates to match right column; name/title/icons on hover */
+.team .ceo-block {
+  margin-bottom: 3.5rem;
+  overflow: visible;
+}
+
+.team .ceo-block .row {
+  align-items: stretch;
+}
+
+.team .ceo-block .ceo-block-card.team-card.compact {
+  height: 100%;
+  display: flex;
+}
+
+.team .ceo-block .ceo-block-card .ceo-block-image.member-photo {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-height: 420px;
+}
+
+.team .ceo-block .ceo-block-card .ceo-block-image.member-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  transition: all 0.4s ease-in-out;
+}
+
+.team .ceo-block .ceo-block-content {
+  padding-block: 2.5rem;
+  padding-inline: 2.75rem;
+}
+
+.team .ceo-block .ceo-heading {
+  color: #2c2c2c;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 2rem 0;
+  letter-spacing: -0.01em;
+}
+
+.team .ceo-block .ceo-message {
+  color: var(--default-color);
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.team .ceo-block .ceo-message p {
+  margin-bottom: 1.25rem;
+  color: var(--default-color);
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.team .ceo-block .ceo-message p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 991px) {
+  .team .ceo-block .ceo-block-card .ceo-block-image.member-photo {
+    min-height: 380px;
+  }
+
+  .team .ceo-block .ceo-block-content {
+    padding-block: 2rem;
+    padding-inline: 2.25rem;
+  }
+
+  .team .ceo-block .ceo-heading {
+    font-size: 1.5rem;
+    margin-bottom: 1.75rem;
+  }
+}
+
+@media (max-width: 575px) {
+  .team .ceo-block .ceo-block-card .ceo-block-image.member-photo {
+    min-height: 320px;
+  }
+
+  .team .ceo-block .ceo-block-content {
+    padding-block: 1.5rem;
+    padding-inline: 1.5rem;
+  }
+
+  .team .ceo-block .ceo-heading {
+    font-size: 1.35rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .team .ceo-block .ceo-message p,
+  .team .ceo-block .ceo-message {
+    font-size: 0.9rem;
   }
 }
 

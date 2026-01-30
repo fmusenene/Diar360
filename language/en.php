@@ -328,6 +328,8 @@ return [
     'rate' => 'Rate',
     'years' => 'Years',
     'team_expert_team' => 'Our Expert Team',
+    'ceo' => 'Chief Executive Officer',
+    'as_stated_by' => 'As stated by',
     'team_engineers_desc' => 'Our engineers hold advanced degrees from globally recognized universities',
     'team_member_desc' => 'Experienced professional with extensive knowledge in construction and project management.',
     'pmp_certified' => 'PMP Certified',

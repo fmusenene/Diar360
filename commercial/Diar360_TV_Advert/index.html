@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DIAR 360 | Company Profile Commercial</title>
+  <!-- Fonts: Match diar360.com - Roboto, Ubuntu, Lato -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Ubuntu:wght@400;500;700&family=Lato:wght@300;400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; background: #0a0a0a; }
+    
+    body {
+      font-family: 'Roboto', 'Lato', system-ui, sans-serif;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .cinematic-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: 16/9;
+      max-width: 100vw;
+      max-height: 100vh;
+      margin: auto;
+      overflow: hidden;
+    }
+    
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 1.2s ease, visibility 1.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0a;
+    }
+    
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 1;
+    }
+    
+    .slide-bg {
+      position: absolute;
+      inset: -10%;
+      background-size: cover;
+      background-position: center;
+      filter: brightness(0.35);
+      transition: transform 20s ease-out;
+    }
+    
+    .slide.active .slide-bg {
+      animation: kenBurns 15s ease-out forwards;
+    }
+    
+    @keyframes kenBurns {
+      0% { transform: scale(1) translate(0, 0) rotate(0deg); }
+      100% { transform: scale(1.15) translate(-2%, -2%) rotate(0.5deg); }
+    }
+    
+    .slide-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.7) 100%);
+      z-index: 1;
+    }
+    
+    .slide-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 4rem 6rem;
+      max-width: 1200px;
+    }
+    
+    .slide h1 {
+      font-family: 'Ubuntu', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4.5rem);
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      color: #ffffff;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    
+    .slide.active h1 {
+      animation: fadeUp 1s ease 0.3s forwards;
+    }
+    
+    .slide h2 {
+      font-family: 'Ubuntu', sans-serif;
+      font-size: clamp(1.8rem, 3.5vw, 3rem);
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.5rem;
+      color: #ffffff;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    
+    .slide.active h2 {
+      animation: fadeUp 1s ease 0.4s forwards;
+    }
+    
+    .slide p, .slide .text-block {
+      font-size: clamp(0.95rem, 1.5vw, 1.2rem);
+      line-height: 1.8;
+      font-weight: 300;
+      opacity: 0.95;
+      max-width: 900px;
+      margin: 0 auto 1rem;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    
+    .slide.active p,
+    .slide.active .text-block {
+      animation: fadeUp 1s ease 0.5s forwards;
+    }
+    
+    .slide .subtext {
+      font-size: clamp(0.85rem, 1.2vw, 1rem);
+      opacity: 0.8;
+      margin-top: 1.5rem;
+    }
+    
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .logo-mark {
+      font-family: 'Ubuntu', sans-serif;
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    
+    /* Diar360 logo - inverts for visibility on dark overlay; blends into design */
+    .brand-logo {
+      max-width: 280px;
+      height: auto;
+      max-height: 140px;
+      object-fit: contain;
+      filter: invert(1) brightness(1.05);
+      opacity: 0;
+    }
+    
+    .slide.active .brand-logo { animation: logoReveal 1.2s ease 0.2s forwards; }
+    
+    .slide.active .logo-fallback { animation: logoReveal 1.2s ease 0.2s forwards; }
+    
+    /* Corner watermark - subtle, always visible, blends into frame */
+    .logo-watermark {
+      position: fixed;
+      top: 1.25rem;
+      left: 1.5rem;
+      z-index: 90;
+      max-width: 90px;
+      height: auto;
+      opacity: 0.3;
+      filter: invert(1) brightness(1.1);
+      pointer-events: none;
+    }
+    
+    .slide.active .logo-mark {
+      animation: logoReveal 1.2s ease 0.2s forwards;
+    }
+    
+    @keyframes logoReveal {
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    .tagline {
+      font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.9);
+      opacity: 0;
+      animation: fadeUp 1s ease 0.6s forwards;
+    }
+    
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+      text-align: left;
+    }
+    
+    .service-item {
+      background: rgba(20,82,157,0.12);
+      border-left: 3px solid #14529d;
+      padding: 1rem 1.5rem;
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    
+    .slide.active .service-item:nth-child(1) { animation: fadeUp 0.8s ease 0.5s forwards; }
+    .slide.active .service-item:nth-child(2) { animation: fadeUp 0.8s ease 0.6s forwards; }
+    .slide.active .service-item:nth-child(3) { animation: fadeUp 0.8s ease 0.7s forwards; }
+    .slide.active .service-item:nth-child(4) { animation: fadeUp 0.8s ease 0.8s forwards; }
+    .slide.active .service-item:nth-child(5) { animation: fadeUp 0.8s ease 0.9s forwards; }
+    .slide.active .service-item:nth-child(6) { animation: fadeUp 0.8s ease 1s forwards; }
+    
+    .service-item strong { color: #14529d; display: block; margin-bottom: 0.3rem; }
+    
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+      text-align: center;
+    }
+    
+    .value-item {
+      padding: 1.5rem;
+      border: 1px solid rgba(20,82,157,0.4);
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    
+    .slide.active .value-item:nth-child(1) { animation: fadeUp 0.8s ease 0.5s forwards; }
+    .slide.active .value-item:nth-child(2) { animation: fadeUp 0.8s ease 0.6s forwards; }
+    .slide.active .value-item:nth-child(3) { animation: fadeUp 0.8s ease 0.7s forwards; }
+    .slide.active .value-item:nth-child(4) { animation: fadeUp 0.8s ease 0.8s forwards; }
+    
+    .value-item h4 { color: #14529d; font-size: 1rem; margin-bottom: 0.5rem; letter-spacing: 0.1em; }
+    
+    .stats-row {
+      display: flex;
+      justify-content: center;
+      gap: 4rem;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+    }
+    
+    .stat {
+      text-align: center;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    
+    .slide.active .stat:nth-child(1) { animation: fadeUp 0.8s ease 0.5s forwards; }
+    .slide.active .stat:nth-child(2) { animation: fadeUp 0.8s ease 0.6s forwards; }
+    .slide.active .stat:nth-child(3) { animation: fadeUp 0.8s ease 0.7s forwards; }
+    .slide.active .stat:nth-child(4) { animation: fadeUp 0.8s ease 0.8s forwards; }
+    
+    .stat-number { font-size: 2.5rem; color: #ffffff; font-weight: 600; }
+    .stat-label { font-size: 0.85rem; opacity: 0.9; margin-top: 0.2rem; }
+    
+    .projects-marquee {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .project-badge {
+      background: rgba(20,82,157,0.2);
+      padding: 0.8rem 1.5rem;
+      border-radius: 2px;
+      font-size: 0.95rem;
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    
+    .slide.active .project-badge { animation: fadeUp 0.6s ease forwards; }
+    .slide.active .project-badge:nth-child(1) { animation-delay: 0.5s; }
+    .slide.active .project-badge:nth-child(2) { animation-delay: 0.6s; }
+    .slide.active .project-badge:nth-child(3) { animation-delay: 0.7s; }
+    .slide.active .project-badge:nth-child(4) { animation-delay: 0.8s; }
+    .slide.active .project-badge:nth-child(5) { animation-delay: 0.9s; }
+    .slide.active .project-badge:nth-child(6) { animation-delay: 1s; }
+    
+    .ceo-section {
+      display: flex;
+      align-items: center;
+      gap: 3rem;
+      text-align: left;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .ceo-image {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #14529d;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+    
+    .slide.active .ceo-image { animation: fadeUp 1s ease 0.4s forwards; }
+    
+    .contact-info {
+      margin-top: 2rem;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      opacity: 0;
+    }
+    
+    .slide.active .contact-info { animation: fadeUp 1s ease 0.7s forwards; }
+    
+    .contact-info a { color: #6eb3f7; text-decoration: none; }
+    
+    .footer-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0.8rem 2rem;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      z-index: 100;
+      opacity: 0.7;
+    }
+    
+    .footer-bar .url { color: #6eb3f7; }
+    
+    .progress-dots {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 0.5rem;
+      z-index: 101;
+    }
+    
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transition: all 0.3s ease;
+    }
+    
+    .dot.active { background: #14529d; transform: scale(1.3); }
+    
+    /* Background music - mute/unmute button */
+    .audio-toggle {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.5rem;
+      z-index: 95;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      opacity: 0.7;
+    }
+    
+    .audio-toggle:hover {
+      opacity: 1;
+      background: rgba(20,82,157,0.5);
+      border-color: #14529d;
+    }
+    
+    .audio-toggle.muted { opacity: 0.5; }
+    .audio-toggle.muted::after { content: ''; position: absolute; width: 2px; height: 24px; background: #fff; transform: rotate(-45deg); }
+    
+    /* RTL for Arabic slides */
+    .slide.rtl .slide-content { direction: rtl; text-align: right; font-family: 'Cairo', 'Roboto', sans-serif; }
+    .slide.rtl .slide-content h1, .slide.rtl .slide-content h2, .slide.rtl .slide-content h4 { font-family: 'Cairo', 'Ubuntu', sans-serif; }
+    .slide.rtl .ceo-section { flex-direction: row-reverse; text-align: right; }
+    .slide.rtl .services-grid { text-align: right; }
+    .slide.rtl .value-item { text-align: right; }
+    .slide.rtl .text-block { text-align: right; }
+  </style>
+</head>
+<body>
+  <!-- Background music: plays after first click (browser policy) -->
+  <audio id="bgm" loop preload="auto" playsinline>
+    <source src="./assets/audio/background.mp3" type="audio/mpeg">
+    <source src="https://assets.mixkit.co/music/preview/mixkit-inspiring-corporate-1170.mp3" type="audio/mpeg">
+  </audio>
+  
+  <button class="audio-toggle" id="audioToggle" title="Click to play music / mute" aria-label="Toggle background music">🔊</button>
+  
+  <div class="cinematic-container">
+    
+    <!-- Slide 1: Opening - Diar360 logo with WE BUILD NEW VISION tagline -->
+    <div class="slide active" data-duration="6">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/showcase-3.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <img src="./assets/img/diar360-logo.png" alt="Diar 360" class="brand-logo" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="logo-mark logo-fallback" style="display:none;">DIAR 360</div>
+        <p class="subtext">Leading in Construction and Achievement | Saudi Arabia & Gulf Region</p>
+      </div>
+    </div>
+    
+    <!-- Slide 2: About -->
+    <div class="slide" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-3.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>About Diar 360</h2>
+        <p>Diar 360 is a Saudi-based contracting company with deep expertise across multiple sectors: civil construction, fit-out and finishing, MEP, landscaping, and facility management.</p>
+        <p>Operating across Saudi Arabia and the Gulf region, we deliver high-end contracting solutions backed by a multidisciplinary team of experienced engineers, project managers, and industry specialists.</p>
+        <p>Customer satisfaction stands at the core of our philosophy. By consistently exceeding expectations, we build long-term partnerships and drive continued success.</p>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-number">16+</div><div class="stat-label">Years Experience</div></div>
+          <div class="stat"><div class="stat-number">100%</div><div class="stat-label">Success Rate</div></div>
+          <div class="stat"><div class="stat-number">Expert</div><div class="stat-label">Engineers</div></div>
+          <div class="stat"><div class="stat-number">Global</div><div class="stat-label">Partners</div></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 3: Vision -->
+    <div class="slide" data-duration="7">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-1.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Our Vision</h2>
+        <p>At Diar 360, we envision becoming a trusted and enduring partner in shaping the Kingdom's future. Our vision is rooted in building long-lasting relationships founded on trust, quality, and innovation.</p>
+        <p>Through our unwavering dedication to excellence and customer satisfaction, we aim to create sustainable value and contribute meaningfully to Saudi Arabia's continuous growth and development.</p>
+      </div>
+    </div>
+    
+    <!-- Slide 4: Mission -->
+    <div class="slide" data-duration="9">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-4.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Our Mission</h2>
+        <p>Our mission is to deliver integrated contracting solutions that combine precision, innovation, and integrity. Ensuring every project exceeds expectations and stands as a mark of excellence.</p>
+        <div class="text-block" style="text-align: left; margin-top: 1.5rem;">
+          <p>01 — Prioritizing Client Success</p>
+          <p>02 — Delivering Value-Added Results</p>
+          <p>03 — Upholding Quality Standards</p>
+          <p>04 — Empowering Our People</p>
+          <p>05 — Exceeding Expectations</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 5: Core Values -->
+    <div class="slide" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-7.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Our Core Values</h2>
+        <div class="values-grid">
+          <div class="value-item">
+            <h4>Client Satisfaction</h4>
+            <p>We place our clients at the heart of everything we do. By understanding their goals and challenges, we deliver solutions that consistently exceed expectations.</p>
+          </div>
+          <div class="value-item">
+            <h4>Collaboration</h4>
+            <p>Success is built on teamwork. Through open communication and collective expertise, we foster a culture of trust and partnership.</p>
+          </div>
+          <div class="value-item">
+            <h4>Safety and Quality</h4>
+            <p>We maintain the highest standards of safety and quality across all operations. Every project reflects our unwavering commitment to precision and reliability.</p>
+          </div>
+          <div class="value-item">
+            <h4>Consistency and Integrity</h4>
+            <p>We operate with honesty, accountability, and professionalism. Our promise is to deliver consistent excellence on time.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 6: Services -->
+    <div class="slide" data-duration="10">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-2.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Our Services</h2>
+        <p>Comprehensive contracting solutions across Saudi Arabia and the Gulf region</p>
+        <div class="services-grid">
+          <div class="service-item"><strong>01</strong> Civil & Concrete Works</div>
+          <div class="service-item"><strong>02</strong> Fit-Out & Finishing Works</div>
+          <div class="service-item"><strong>03</strong> Facility Management</div>
+          <div class="service-item"><strong>04</strong> Risk Management</div>
+          <div class="service-item"><strong>05</strong> Landscaping</div>
+          <div class="service-item"><strong>06</strong> MEP (Mechanical, Electrical & Plumbing)</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 7: Scope of Expertise -->
+    <div class="slide" data-duration="7">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-5.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Scope of Expertise</h2>
+        <p>Our expertise is built on technical excellence, innovation, and efficiency. Every project benefits from our end-to-end capabilities and commitment to precision.</p>
+        <div class="services-grid" style="grid-template-columns: 1fr;">
+          <div class="service-item"><strong>Innovative Design</strong> Creative, practical, and sustainable designs tailored to each client's requirements</div>
+          <div class="service-item"><strong>Skilled Contracting</strong> Timely, accurate, and cost-effective completion with full compliance to safety and quality benchmarks</div>
+          <div class="service-item"><strong>Efficient Execution</strong> State-of-the-art technologies, equipment, and methodologies across all disciplines</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 8: Key Projects -->
+    <div class="slide" data-duration="9">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-8.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Our Projects</h2>
+        <p>Landmark projects across the Kingdom and Gulf region</p>
+        <div class="projects-marquee">
+          <span class="project-badge">Lamar Towers, Jeddah</span>
+          <span class="project-badge">Riyadh Metro Project</span>
+          <span class="project-badge">Al Rashed Palace</span>
+          <span class="project-badge">309,310 Tower KAFD</span>
+          <span class="project-badge">Elegance Tower</span>
+          <span class="project-badge">Saudi Press Agency HQ</span>
+        </div>
+        <p class="subtext" style="margin-top: 2rem;">Rimal • Makkah Chilled Water • California Compound • Shaqra Roman Theater • National Water Company</p>
+      </div>
+    </div>
+    
+    <!-- Slide 9: CEO -->
+    <div class="slide" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-10.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>CEO at a Glance</h2>
+        <div class="ceo-section">
+          <img src="./assets/img/construction/CEO.webp" alt="Khalil Awada" class="ceo-image" onerror="this.src='./assets/img/construction/CEO.png'">
+          <div>
+            <p><strong style="color:#14529d;">Khalil Awada</strong> — Visionary leader with diverse background spanning marketing, engineering, and construction management.</p>
+            <p>Holding a degree from Lebanese American University, he advanced from Marketing Manager at BAT to leadership at Spectrom Engineering Solutions, and now steers Diar 360's growth and transformation.</p>
+            <p>His leadership philosophy is built on integrity, collaboration, and client-centricity. Notable contributions include Lamar Towers, Riyadh Metro Project, and Al Rashed Palace.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 10: Certifications -->
+    <div class="slide" data-duration="7">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-12.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>Certifications & Compliance</h2>
+        <p>Diar 360 maintains the highest international standards through robust certification systems</p>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-number">ISO</div><div class="stat-label">9001:2015</div></div>
+          <div class="stat"><div class="stat-number">OSHA</div><div class="stat-label">30-Hour</div></div>
+          <div class="stat"><div class="stat-number">State</div><div class="stat-label">Licensed</div></div>
+          <div class="stat"><div class="stat-number">LEED</div><div class="stat-label">Certified</div></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 11: Contact / CTA -->
+    <div class="slide" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/showcase-5.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h1>Get In Touch</h1>
+        <p>Partner with Diar 360 for your next construction project</p>
+        <div class="contact-info">
+          <p><strong>Address:</strong> 6999 Hassan Ibn Hussein Ibn Ali, 2454 Al Munisiyah Dist. 13246 Riyadh, KSA</p>
+          <p><strong>Email:</strong> <a href="mailto:info@diar360.com">info@diar360.com</a></p>
+          <p><strong>Phone:</strong> <a href="tel:+966112967735">+966 11 296 7735</a></p>
+          <p><strong>Web:</strong> <a href="https://www.diar360.com" target="_blank">www.diar360.com</a></p>
+          <p><strong>Follow:</strong> @diar360</p>
+        </div>
+        <img src="./assets/img/diar360-logo.png" alt="Diar 360" class="brand-logo" style="margin-top: 2rem; max-height: 80px;" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="logo-mark logo-fallback" style="display:none; font-size: 2rem; margin-top: 2rem;">DIAR 360</div>
+        <p class="tagline">Company Profile 2025</p>
+      </div>
+    </div>
+    
+    <!-- ========== ARABIC VERSION (runs after English) ========== -->
+    
+    <!-- Slide 12: Opening AR -->
+    <div class="slide rtl" data-duration="6">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/showcase-3.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <img src="./assets/img/diar360-logo.png" alt="ديار 360" class="brand-logo" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="logo-mark logo-fallback" style="display:none;">ديار 360</div>
+        <p class="subtext">الريادة في البناء والإنجاز | المملكة العربية السعودية ومنطقة الخليج</p>
+      </div>
+    </div>
+    
+    <!-- Slide 13: About AR -->
+    <div class="slide rtl" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-3.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>عن ديار 360</h2>
+        <p>ديار 360 شركة مقاولات سعودية ذات خبرة عميقة في قطاعات متعددة: البناء المدني، التشطيب والإنهاء، MEP، تنسيق الحدائق، وإدارة المرافق.</p>
+        <p>نعمل في المملكة العربية السعودية ومنطقة الخليج، ونقدم حلول مقاولات عالية الجودة مدعومة بفريق متعدد التخصصات من المهندسين ومديري المشاريع والمتخصصين في المجال.</p>
+        <p>رضا العملاء هو جوهر فلسفتنا. من خلال تجاوز التوقعات باستمرار، نبني شراكات طويلة الأمد ونحقق نجاحاً مستمراً.</p>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-number">١٦+</div><div class="stat-label">سنوات الخبرة</div></div>
+          <div class="stat"><div class="stat-number">١٠٠٪</div><div class="stat-label">معدل النجاح</div></div>
+          <div class="stat"><div class="stat-number">خبراء</div><div class="stat-label">مهندسون</div></div>
+          <div class="stat"><div class="stat-number">عالمي</div><div class="stat-label">شركاء</div></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 14: Vision AR -->
+    <div class="slide rtl" data-duration="7">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-1.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>رؤيتنا</h2>
+        <p>في ديار 360، نسعى لنكون شريكاً موثوقاً ودائماً في تشكيل مستقبل المملكة. رؤيتنا متجذرة في بناء علاقات دائمة قائمة على الثقة والجودة والابتكار.</p>
+        <p>من خلال تفانينا الثابت في التميز ورضا العملاء، نهدف إلى خلق قيمة مستدامة والمساهمة بجدية في النمو والتطور المستمر للمملكة العربية السعودية.</p>
+      </div>
+    </div>
+    
+    <!-- Slide 15: Mission AR -->
+    <div class="slide rtl" data-duration="9">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-4.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>مهمتنا</h2>
+        <p>مهمتنا هي تقديم حلول مقاولات متكاملة تجمع بين الدقة والابتكار والنزاهة. وضمان تجاوز كل مشروع للتوقعات والوقوف كعلامة على التميز.</p>
+        <div class="text-block" style="margin-top: 1.5rem;">
+          <p>٠١ — أولوية نجاح العميل</p>
+          <p>٠٢ — تقديم نتائج ذات قيمة مضافة</p>
+          <p>٠٣ — الحفاظ على معايير الجودة</p>
+          <p>٠٤ — تمكين موظفينا</p>
+          <p>٠٥ — تجاوز التوقعات</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 16: Core Values AR -->
+    <div class="slide rtl" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-7.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>قيمنا الأساسية</h2>
+        <div class="values-grid">
+          <div class="value-item">
+            <h4>رضا العملاء</h4>
+            <p>نضع عملاءنا في قلب كل ما نقوم به. بفهم أهدافهم وتحدياتهم، نقدم حلولاً تتجاوز التوقعات باستمرار.</p>
+          </div>
+          <div class="value-item">
+            <h4>التعاون</h4>
+            <p>النجاح مبني على العمل الجماعي. من خلال التواصل المفتوح والخبرة الجماعية، نعزز ثقافة الثقة والشراكة.</p>
+          </div>
+          <div class="value-item">
+            <h4>السلامة والجودة</h4>
+            <p>نحافظ على أعلى معايير السلامة والجودة في جميع العمليات. كل مشروع يعكس التزامنا الثابت بالدقة والموثوقية.</p>
+          </div>
+          <div class="value-item">
+            <h4>الثبات والنزاهة</h4>
+            <p>نعمل بأمانة ومساءلة واحترافية. وعدنا هو تقديم التميز الثابت في الوقت المحدد.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 17: Services AR -->
+    <div class="slide rtl" data-duration="10">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-2.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>خدماتنا</h2>
+        <p>حلول مقاولات شاملة في المملكة العربية السعودية ومنطقة الخليج</p>
+        <div class="services-grid">
+          <div class="service-item"><strong>٠١</strong> أعمال مدنية وخرسانية</div>
+          <div class="service-item"><strong>٠٢</strong> التشطيب والإنهاء</div>
+          <div class="service-item"><strong>٠٣</strong> إدارة المرافق</div>
+          <div class="service-item"><strong>٠٤</strong> إدارة المخاطر</div>
+          <div class="service-item"><strong>٠٥</strong> تنسيق الحدائق</div>
+          <div class="service-item"><strong>٠٦</strong> MEP (ميكانيكي، كهربائي، سباكة)</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 18: Scope of Expertise AR -->
+    <div class="slide rtl" data-duration="7">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-5.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>نطاق الخبرة</h2>
+        <p>تستند خبرتنا على التميز التقني والابتكار والكفاءة. كل مشروع يستفيد من قدراتنا الشاملة والتزامنا بالدقة.</p>
+        <div class="services-grid" style="grid-template-columns: 1fr;">
+          <div class="service-item"><strong>تصميم مبتكر</strong> تصاميم إبداعية وعملية ومستدامة مصممة خصيصاً لمتطلبات كل عميل</div>
+          <div class="service-item"><strong>مقاولة ماهرة</strong> إنجاز في الوقت المحدد ودقيق وفعال من حيث التكلفة مع الامتثال الكامل لمعايير السلامة والجودة</div>
+          <div class="service-item"><strong>تنفيذ فعال</strong> أحدث التقنيات والمعدات والمنهجيات في جميع التخصصات</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 19: Key Projects AR -->
+    <div class="slide rtl" data-duration="9">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-8.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>مشاريعنا</h2>
+        <p>مشاريع بارزة في المملكة ومنطقة الخليج</p>
+        <div class="projects-marquee">
+          <span class="project-badge">أبراج لامار، جدة</span>
+          <span class="project-badge">مشروع مترو الرياض</span>
+          <span class="project-badge">قصر الراشد</span>
+          <span class="project-badge">برج ٣٠٩،٣١٠ KAFD</span>
+          <span class="project-badge">برج الأناقة</span>
+          <span class="project-badge">مقر وكالة الأنباء السعودية</span>
+        </div>
+        <p class="subtext" style="margin-top: 2rem;">الرمال • مكة المياه المبردة • مجمع كاليفورنيا • مسرح شقراء الروماني • الشركة الوطنية للمياه</p>
+      </div>
+    </div>
+    
+    <!-- Slide 20: CEO AR -->
+    <div class="slide rtl" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-10.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>الرئيس التنفيذي</h2>
+        <div class="ceo-section">
+          <img src="./assets/img/construction/CEO.webp" alt="خليل عواضة" class="ceo-image" onerror="this.src='./assets/img/construction/CEO.png'">
+          <div>
+            <p><strong style="color:#14529d;">خليل عواضة</strong> — قائد رؤيوي بخلفية متنوعة تشمل التسويق والهندسة وإدارة الإنشاءات.</p>
+            <p>حاصلاً على شهادة من الجامعة اللبنانية الأميركية، تدرج من مدير التسويق في BAT إلى القيادة في Spectrom Engineering Solutions، ويقود الآن نمو وتطور ديار 360.</p>
+            <p>فلسفته القيادية مبنية على النزاهة والتعاون وتركيز العملاء. إسهامات بارزة تشمل أبراج لامار ومشروع مترو الرياض وقصر الراشد.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 21: Certifications AR -->
+    <div class="slide rtl" data-duration="7">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/project-12.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h2>الشهادات والامتثال</h2>
+        <p>تحافظ ديار 360 على أعلى المعايير الدولية من خلال أنظمة شهادة قوية</p>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-number">ISO</div><div class="stat-label">9001:2015</div></div>
+          <div class="stat"><div class="stat-number">OSHA</div><div class="stat-label">30 ساعة</div></div>
+          <div class="stat"><div class="stat-number">مرخص</div><div class="stat-label">من الدولة</div></div>
+          <div class="stat"><div class="stat-number">LEED</div><div class="stat-label">معتمد</div></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Slide 22: Contact AR -->
+    <div class="slide rtl" data-duration="8">
+      <div class="slide-bg" style="background-image: url('./assets/img/construction/showcase-5.webp');"></div>
+      <div class="slide-overlay"></div>
+      <div class="slide-content">
+        <h1>تواصل معنا</h1>
+        <p>شراكة مع ديار 360 لمشروع البناء القادم</p>
+        <div class="contact-info">
+          <p><strong>العنوان:</strong> 6999 حسن بن حسين بن علي، 2454 حي المنصورة 13246 الرياض، المملكة العربية السعودية</p>
+          <p><strong>البريد:</strong> <a href="mailto:info@diar360.com">info@diar360.com</a></p>
+          <p><strong>الهاتف:</strong> <a href="tel:+966112967735">+966 11 296 7735</a></p>
+          <p><strong>الويب:</strong> <a href="https://www.diar360.com" target="_blank">www.diar360.com</a></p>
+          <p><strong>تابعنا:</strong> @diar360</p>
+        </div>
+        <img src="./assets/img/diar360-logo.png" alt="ديار 360" class="brand-logo" style="margin-top: 2rem; max-height: 80px;" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="logo-mark logo-fallback" style="display:none; font-size: 2rem; margin-top: 2rem;">ديار 360</div>
+        <p class="tagline">ملف الشركة 2025</p>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- Logo watermark - blends into corner, always visible -->
+  <img src="./assets/img/diar360-logo.png" alt="" class="logo-watermark" onerror="this.style.display='none'">
+  
+  <div class="footer-bar">
+    <span>DIAR 360 | Company Profile 2025</span>
+    <span class="url">www.diar360.com</span>
+  </div>
+  
+  <div class="progress-dots" id="dots"></div>
+  
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const dotsContainer = document.getElementById('dots');
+    
+    slides.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i === 0 ? ' active' : '');
+      dot.setAttribute('data-index', i);
+      dotsContainer.appendChild(dot);
+    });
+    
+    const dots = document.querySelectorAll('.dot');
+    let currentSlide = 0;
+    let timer;
+    
+    function goToSlide(index) {
+      slides[currentSlide].classList.remove('active');
+      dots[currentSlide].classList.remove('active');
+      currentSlide = (index + slides.length) % slides.length;
+      slides[currentSlide].classList.add('active');
+      dots[currentSlide].classList.add('active');
+      resetTimer();
+    }
+    
+    function resetTimer() {
+      clearTimeout(timer);
+      const duration = parseInt(slides[currentSlide].dataset.duration) * 1000;
+      timer = setTimeout(() => goToSlide(currentSlide + 1), duration);
+    }
+    
+    dots.forEach(dot => {
+      dot.addEventListener('click', () => goToSlide(parseInt(dot.dataset.index)));
+    });
+    
+    resetTimer();
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goToSlide(currentSlide + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    
+    // Background music: must start on user gesture (browser autoplay policy)
+    const bgm = document.getElementById('bgm');
+    const audioToggle = document.getElementById('audioToggle');
+    let audioReady = false;
+    
+    function enableAndPlayAudio() {
+      if (!bgm) return;
+      if (!audioReady) {
+        audioReady = true;
+        bgm.volume = 0.35;
+        bgm.muted = false;
+        bgm.play().then(() => {
+          audioToggle.textContent = '🔊';
+          audioToggle.classList.remove('muted');
+        }).catch(() => {});
+      }
+    }
+    
+    function toggleMute() {
+      if (!bgm) return;
+      bgm.muted = !bgm.muted;
+      audioToggle.textContent = bgm.muted ? '🔇' : '🔊';
+      audioToggle.classList.toggle('muted', bgm.muted);
+    }
+    
+    // Start audio on first click/tap anywhere, or when pressing the button
+    function handleFirstInteraction() {
+      enableAndPlayAudio();
+    }
+    
+    document.addEventListener('click', handleFirstInteraction, { once: true });
+    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+    document.addEventListener('keydown', handleFirstInteraction, { once: true });
+    
+    audioToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!audioReady) {
+        enableAndPlayAudio();
+      } else {
+        toggleMute();
+      }
+    });
+  </script>
+</body>
+</html>

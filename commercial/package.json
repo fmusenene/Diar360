@@ -1,0 +1,12 @@
+{
+  "name": "diar360-commercial-recorder",
+  "version": "1.0.0",
+  "description": "Record Diar 360 HTML commercial to 4K video",
+  "scripts": {
+    "record": "node record-to-video.js",
+    "record:video": "node record-to-video.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}

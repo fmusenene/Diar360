@@ -62,199 +62,58 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
   
   <!-- Language Switcher Styles -->
   <style>
-    /* Diar 360 Logo Styles */
+    /* Diar 360 Logo Styles - use real logo image */
     .diar360-logo {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      text-decoration: none;
-      color: inherit;
     }
-    
-    .logo-top {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 8px;
-      width: 100px;
-      height: 35px;
+
+    .diar360-logo img {
+      display: block;
+      max-height: 160px; /* extra large desktop logo */
+      height: auto;
+      width: auto;
     }
-    
-    .logo-arrow {
-      position: absolute;
-      top: -5px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 90px;
-      height: 25px;
-      z-index: 1;
-    }
-    
-    .logo-d3 {
-      font-size: 22px;
-      font-weight: 700;
-      font-family: var(--heading-font, "Ubuntu", sans-serif);
-      color: var(--heading-color, #102a49);
-      position: relative;
-      z-index: 2;
-      letter-spacing: -1px;
-    }
-    
-    .logo-lines {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      pointer-events: none;
-      padding: 0 5px;
-    }
-    
-    .logo-lines .line-left,
-    .logo-lines .line-right {
-      width: 25px;
-      height: 1px;
-      background-color: #666;
-    }
-    
-    .logo-main {
-      display: flex;
-      align-items: baseline;
-      gap: 5px;
-      margin-bottom: 3px;
-    }
-    
-    .logo-diar {
-      font-size: 32px;
-      font-weight: 700;
-      font-family: Georgia, "Times New Roman", serif;
-      color: var(--heading-color, #102a49);
-      line-height: 1;
-    }
-    
-    .logo-diar::first-letter {
-      font-size: 36px;
-    }
-    
-    .logo-360 {
-      font-size: 32px;
-      font-weight: 700;
-      font-family: var(--heading-font, "Ubuntu", sans-serif);
-      color: var(--heading-color, #102a49);
-      line-height: 1;
-    }
-    
-    .logo-tagline {
-      font-size: 9px;
-      font-weight: 500;
-      letter-spacing: 1.5px;
-      color: #666;
-      text-transform: uppercase;
-      margin-top: 2px;
-      font-family: var(--default-font, "Roboto", sans-serif);
-    }
-    
-    /* Logo hover effect */
-    .logo:hover .diar360-logo {
-      opacity: 0.9;
-    }
-    
-    .logo:hover .logo-diar,
-    .logo:hover .logo-360,
-    .logo:hover .logo-d3 {
-      color: var(--accent-color, #14529d);
-    }
-    
+
     /* Responsive logo */
     @media (max-width: 768px) {
-      .logo-d3 {
-        font-size: 20px;
-      }
-      
-      .logo-diar {
-        font-size: 26px;
-      }
-      
-      .logo-diar::first-letter {
-        font-size: 30px;
-      }
-      
-      .logo-360 {
-        font-size: 26px;
-      }
-      
-      .logo-tagline {
-        font-size: 8px;
-        letter-spacing: 1px;
-      }
-      
-      .logo-arrow {
-        width: 65px;
-        height: 25px;
-        top: -6px;
+      .diar360-logo img {
+        max-height: 120px; /* extra large on mobile as well */
       }
     }
     
+    /* Language switcher – clean, standard pill style */
     .language-switcher {
       position: relative;
     }
     
     .lang-switch-container {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 50px;
-      padding: 3px;
+      justify-content: center;
+      background: rgba(20, 82, 157, 0.95); /* brand blue */
+      border-radius: 999px;
+      padding: 2px;
       gap: 2px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      transition: all 0.3s ease;
-      width: 110px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      min-width: 104px;
       flex-shrink: 0;
     }
     
-    .lang-switch-container:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border-color: rgba(255, 255, 255, 0.3);
-    }
-    
     .lang-option {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 4px;
-      padding: 6px 14px;
-      min-width: 44px;
-      border-radius: 50px;
-      text-decoration: none;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 600;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
+      padding: 5px 10px;
       flex: 1;
+      border-radius: 999px;
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 11px;
+      font-weight: 600;
       white-space: nowrap;
-      overflow: visible;
-      text-align: center;
-    }
-    
-    .lang-option::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-      transition: left 0.5s ease;
-    }
-    
-    .lang-option:hover::before {
-      left: 100%;
+      transition: background 0.2s ease, color 0.2s ease;
     }
     
     .lang-option i {
@@ -265,50 +124,21 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      opacity: 0.95;
     }
     
     .lang-option:hover {
       color: #ffffff;
-      background: rgba(255, 255, 255, 0.15);
-      transform: translateY(-1px);
-    }
-    
-    .lang-option:hover i {
-      opacity: 1;
-      transform: scale(1.08);
+      background: rgba(255, 255, 255, 0.12);
     }
     
     .lang-option.active {
       background: #ffffff;
       color: #14529d;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-      font-weight: 600;
-      transform: scale(1.02);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     }
     
     .lang-option.active i {
       color: #14529d;
-      opacity: 1;
-      transform: scale(1.05);
-    }
-    
-    .lang-option.active:hover {
-      transform: scale(1.05) translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-    
-    .lang-option span {
-      letter-spacing: 0.5px;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    }
-    
-    .lang-option.active span {
-      text-shadow: none;
     }
     
     /* Mobile Language Switcher */
@@ -424,14 +254,18 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       margin-left: 0 !important;
       margin-right: 20px !important;
     }
+    /* Extra gap between pill and X/Twitter icon in RTL */
+    body[dir="rtl"] .social-links > a.twitter {
+      margin-right: 36px !important;
+    }
     
     body[dir="rtl"] .social-links > a:last-child {
       margin-right: 0 !important;
     }
     
-    /* Add gap between language switcher and first social icon in RTL to match English spacing */
+    /* Add clear gap between Twitter (X) icon and language switcher in RTL */
     body[dir="rtl"] .social-links > .language-switcher {
-      margin-left: 1rem !important;
+      margin-left: 3rem !important;
     }
     
     /* RTL Support for Arabic */
@@ -535,21 +369,7 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       <div class="container position-relative d-flex align-items-center justify-content-between">
         <a href="index.php" class="logo d-flex align-items-center">
           <div class="diar360-logo">
-            <div class="logo-top">
-              <svg class="logo-arrow" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
-                <path d="M 10 30 Q 50 5, 90 30" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
-              </svg>
-              <span class="logo-d3">D3</span>
-              <div class="logo-lines">
-                <span class="line-left"></span>
-                <span class="line-right"></span>
-              </div>
-            </div>
-            <div class="logo-main">
-              <span class="logo-diar">Diar</span>
-              <span class="logo-360">360</span>
-            </div>
-            <div class="logo-tagline">WE BUILD NEW VISION</div>
+            <img src="<?php echo ASSETS_PATH; ?>/img/logo.png" alt="Diar 360" />
           </div>
         </a>
 

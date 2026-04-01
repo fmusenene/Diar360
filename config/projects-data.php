@@ -1,0 +1,445 @@
+<?php
+/**
+ * Projects Data
+ * Contains all project details from Diar 360 Company Profile
+ */
+
+$projects = [
+    'makkah-chilled-water' => [
+        'title' => 'Makkah Project - Chilled Water',
+        'category' => 'MEP',
+        'status' => 'completed',
+        'location' => 'Makkah',
+        'contract_value' => '12.5 MM SAR',
+        'scope' => 'Chilled water system installation and MEP work',
+        'description' => 'Comprehensive chilled water system installation for Makkah project, ensuring efficient cooling solutions with state-of-the-art MEP technologies.',
+        'specs' => [
+            'Scope of Work' => 'Chilled Water System',
+            'Contract Value' => '12.5 Million SAR',
+            'Location' => 'Makkah',
+            'Status' => 'Completed'
+        ]
+    ],
+    'makkah-duct-work' => [
+        'title' => 'Makkah Project - Duct Work',
+        'category' => 'MEP',
+        'status' => 'completed',
+        'location' => 'Makkah',
+        'contract_value' => '6 MM SAR',
+        'scope' => 'Duct work installation and MEP services',
+        'description' => 'Professional duct work installation for Makkah project, ensuring optimal air distribution and ventilation systems.',
+        'specs' => [
+            'Scope of Work' => 'Duct Work',
+            'Contract Value' => '6 Million SAR',
+            'Location' => 'Makkah',
+            'Status' => 'Completed'
+        ]
+    ],
+    'makkah-electrical' => [
+        'title' => 'Makkah Project - Electrical Work',
+        'category' => 'Electrical',
+        'status' => 'completed',
+        'location' => 'Makkah',
+        'contract_value' => '3.2 MM SAR',
+        'scope' => 'Electrical work installation and services',
+        'description' => 'Complete electrical systems installation for Makkah project, including power distribution, lighting, and control systems.',
+        'specs' => [
+            'Scope of Work' => 'Electrical Work',
+            'Contract Value' => '3.2 Million SAR',
+            'Location' => 'Makkah',
+            'Status' => 'Completed'
+        ]
+    ],
+    'rimal-project' => [
+        'title' => 'Rimal Project',
+        'category' => 'Infrastructure',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '11 MM SAR',
+        'scope' => 'Civil, Mechanical, and Electrical work',
+        'description' => 'Comprehensive civil, mechanical, and electrical work for Rimal project, delivering integrated construction solutions.',
+        'specs' => [
+            'Scope of Work' => 'Civil – Mechanical- Electrical',
+            'Contract Value' => '11 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Completed'
+        ]
+    ],
+    'exit-9-project' => [
+        'title' => 'Exit 9 Project',
+        'category' => 'Infrastructure',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => 'N/A',
+        'scope' => 'Civil, Mechanical, and Electrical work',
+        'description' => 'Infrastructure development project at Exit 9, including comprehensive civil, mechanical, and electrical systems.',
+        'specs' => [
+            'Scope of Work' => 'Civil – Mechanical- Electrical',
+            'Location' => 'Riyadh',
+            'Status' => 'Completed'
+        ]
+    ],
+    'lamar-towers' => [
+        'title' => 'Lamar Towers Project',
+        'category' => 'Towers',
+        'status' => 'completed',
+        'location' => 'Corniche Road, Jeddah',
+        'contract_value' => 'N/A',
+        'scope' => 'RCC & MEP, With TAROUK CONTRACTING COMPANY',
+        'description' => 'Two towers from 13th floor till 37th floor covering 60,000m² plus podium 10,000 m². A landmark project in Jeddah showcasing DIAR 360\'s expertise in high-rise construction.',
+        'specs' => [
+            'Project Area' => '2 Towers: 60,000 m² + Podium: 10,000 m²',
+            'Floors' => '2 Towers from 13th to 37th floor',
+            'Location' => 'Corniche Road, Jeddah',
+            'Partner' => 'TAROUK CONTRACTING COMPANY',
+            'Status' => 'Completed'
+        ]
+    ],
+    'elegance-tower' => [
+        'title' => 'Elegance Tower Project',
+        'category' => 'Towers',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => 'N/A',
+        'scope' => 'RCC & MEP, With TAROUK CONTRACTING COMPANY',
+        'description' => '28 floors covering 28,000 m² and 5 basements totaling 35,000 m². A prestigious tower project in Riyadh demonstrating excellence in structural and MEP engineering.',
+        'specs' => [
+            'Project Area' => '28 Floors: 28,000 m² + 5 Basements: 35,000 m²',
+            'Total Area' => '63,000 m²',
+            'Location' => 'Riyadh',
+            'Partner' => 'TAROUK CONTRACTING COMPANY',
+            'Status' => 'Completed'
+        ]
+    ],
+    'ramla-tower' => [
+        'title' => 'Ramla Tower Project',
+        'category' => 'Towers',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => 'N/A',
+        'scope' => 'RCC & MEP with FIRST COMPANY',
+        'description' => '40 floors and 2 basements covering 63,000 m² plus 10,000 m³ foundation. A major high-rise development showcasing advanced construction techniques.',
+        'specs' => [
+            'Project Area' => '40 floors and 2 basements: 63,000 m²',
+            'Foundation' => '10,000 m³',
+            'Location' => 'Riyadh',
+            'Partner' => 'FIRST COMPANY',
+            'Status' => 'Completed'
+        ]
+    ],
+    '309-310-tower-kafd' => [
+        'title' => '309,310 Tower Project (KAFD)',
+        'category' => 'Towers',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => 'N/A',
+        'scope' => 'RCC & MEP with SAUDI BUILD COMPANY',
+        'description' => 'Two towers totaling 140,000 m². Tower 309: 20 Floors and 3 Basements. Tower 310: 15 Floors and 3 Basements. Plus Podium 11 Floors with 3 Basements. A landmark project in King Abdullah Financial District.',
+        'specs' => [
+            'Project Area' => '2 Towers: 140,000 m²',
+            'Tower 309' => '20 Floors and 3 Basements',
+            'Tower 310' => '15 Floors and 3 Basements',
+            'Podium' => '11 Floors with 3 Basements',
+            'Location' => 'Riyadh (KAFD)',
+            'Partner' => 'SAUDI BUILD COMPANY',
+            'Status' => 'Completed'
+        ]
+    ],
+    'al-wassil-tower' => [
+        'title' => 'Al-Wassil Tower Project',
+        'category' => 'Towers',
+        'status' => 'completed',
+        'location' => 'King Fahd Road, Riyadh',
+        'contract_value' => 'N/A',
+        'scope' => 'RCC & MEP with TAROUK CONTRACTING COMPANY',
+        'description' => '20 floors covering 20,000 m² plus 5 basements totaling 20,000 m². A prestigious commercial tower on King Fahd Road.',
+        'specs' => [
+            'Project Area' => '20 Floors: 20,000 m² + 5 Basements: 20,000 m²',
+            'Total Area' => '40,000 m²',
+            'Location' => 'King Fahd Road, Riyadh',
+            'Partner' => 'TAROUK CONTRACTING COMPANY',
+            'Status' => 'Completed'
+        ]
+    ],
+    'al-swailim-tower' => [
+        'title' => 'Al-Swailim Tower Project',
+        'category' => 'Towers',
+        'status' => 'completed',
+        'location' => 'Olaya Road, Riyadh',
+        'contract_value' => 'N/A',
+        'scope' => 'RCC & MEP with TAROUK CONTRACTING COMPANY',
+        'description' => '30,000 m² project with 20 floors plus 2 basements and 2 parking floors. A modern commercial tower on Olaya Road.',
+        'specs' => [
+            'Project Area' => '30,000 m²',
+            'Floors' => '20 floors + 2 basements + 2 parking floors',
+            'Location' => 'Olaya Road, Riyadh',
+            'Partner' => 'TAROUK CONTRACTING COMPANY',
+            'Status' => 'Completed'
+        ]
+    ],
+    'saudi-press-agency' => [
+        'title' => 'Saudi Press Agency HQ',
+        'category' => 'Commercial',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '12 MM SAR',
+        'scope' => 'Civil & MEP',
+        'description' => '12,000 sq/m with 10 floors & dome on 4,000 sq/m plot. Client: SPA - Tarouk as main contractor. Consultant: Al Zaid. A prestigious headquarters building completed in 8 months.',
+        'specs' => [
+            'Project Area' => '12,000 sq/m (10 floors & Dome)',
+            'Plot Area' => '4,000 sq/m',
+            'Budget' => '12 Million SAR',
+            'Duration' => '8 months',
+            'Client' => 'SPA - Tarouk as main contractor',
+            'Consultant' => 'Al Zaid',
+            'Status' => 'Handed Over'
+        ]
+    ],
+    'shaqra-roman-theater' => [
+        'title' => 'Shaqra Roman Theater',
+        'category' => 'Commercial',
+        'status' => 'in-progress',
+        'location' => 'Shaqra',
+        'contract_value' => '8 MM SAR',
+        'scope' => 'Civil & MEP Work',
+        'description' => 'Civil & MEP work for the Shaqra Roman Theater project. A cultural landmark project preserving historical architecture with modern infrastructure.',
+        'specs' => [
+            'Scope of Work' => 'Civil & MEP Work',
+            'Contract Value' => '8 Million SAR',
+            'Location' => 'Shaqra',
+            'Status' => 'ON GOING'
+        ]
+    ],
+    'al-rimal-showrooms' => [
+        'title' => 'Al Rimal Commercial Showrooms',
+        'category' => 'Commercial',
+        'status' => 'in-progress',
+        'location' => 'Riyadh',
+        'contract_value' => '8 MM SAR',
+        'scope' => 'Earthwork, Civil, MEP, and Finishing Work',
+        'description' => 'Comprehensive commercial showrooms project including earthwork, civil construction, MEP systems, and finishing works.',
+        'specs' => [
+            'Scope of Work' => 'Earthwork, Civil, MEP, and Finishing Work',
+            'Contract Value' => '8 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'ON GOING'
+        ]
+    ],
+    'water-pump-station' => [
+        'title' => 'Water Pump House Station Al-Fatiha',
+        'category' => 'Infrastructure',
+        'status' => 'completed',
+        'location' => 'Al-Fatiha, Jazan',
+        'contract_value' => '12 MM SAR',
+        'scope' => 'Earthwork & Mechanical Work',
+        'description' => 'Water pump house station project including earthwork and mechanical work. Critical infrastructure for water distribution in Jazan region.',
+        'specs' => [
+            'Scope of Work' => 'Earthwork & Mechanical Work',
+            'Contract Value' => '12 Million SAR',
+            'Location' => 'Al-Fatiha, Jazan',
+            'Status' => 'Finished'
+        ]
+    ],
+    'mr-atif-project' => [
+        'title' => 'Mr. Atif Bin Ayez Bin Awaz Almezani Almutari',
+        'category' => 'Residential',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '3 MM SAR',
+        'scope' => 'Earthwork, Civil & MEP Work',
+        'description' => 'Residential project including earthwork, civil construction, and MEP work for private client.',
+        'specs' => [
+            'Scope of Work' => 'Earthwork, Civil & MEP Work',
+            'Contract Value' => '3 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Finished'
+        ]
+    ],
+    'mr-saleh-project' => [
+        'title' => 'Mr. Saleh Bin Al-Rasheed Allya',
+        'category' => 'Residential',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '15 MM SAR',
+        'scope' => 'CIVIL, FINISHES & MEP WORKS',
+        'description' => 'Comprehensive residential project including civil construction, finishing works, and MEP systems.',
+        'specs' => [
+            'Scope of Work' => 'CIVIL, FINISHES & MEP WORKS',
+            'Contract Value' => '15 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Finished'
+        ]
+    ],
+    'princess-jawaher' => [
+        'title' => 'Princess Jawaher Bint Muqrin Bin Abdulaziz Al-Saud',
+        'category' => 'Residential',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '6 MM SAR',
+        'scope' => 'CIVIL, FINISHES & MEP WORKS',
+        'description' => 'Royal residential project including civil construction, finishing works, and MEP systems with exceptional quality standards.',
+        'specs' => [
+            'Scope of Work' => 'CIVIL, FINISHES & MEP WORKS',
+            'Contract Value' => '6 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Finished'
+        ]
+    ],
+    'nwc-mep' => [
+        'title' => 'National Water Company - MEP Works',
+        'category' => 'Infrastructure',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '6 MM SAR',
+        'scope' => 'MEP WORKS',
+        'description' => 'MEP works for National Water Company infrastructure project, ensuring reliable water distribution systems.',
+        'specs' => [
+            'Scope of Work' => 'MEP WORKS',
+            'Contract Value' => '6 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Finished'
+        ]
+    ],
+    'nwc-civil-mep' => [
+        'title' => 'National Water Company - Civil & MEP',
+        'category' => 'Infrastructure',
+        'status' => 'in-progress',
+        'location' => 'Riyadh',
+        'contract_value' => '15 MM SAR',
+        'scope' => 'Civil & MEP Work',
+        'description' => 'Ongoing civil & MEP work for National Water Company, expanding water infrastructure capabilities.',
+        'specs' => [
+            'Scope of Work' => 'Civil & MEP Work',
+            'Contract Value' => '15 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'ON GOING'
+        ]
+    ],
+    'riyadh-development' => [
+        'title' => 'Arriyadh Development Authority',
+        'category' => 'Government',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '5.5 MM SAR',
+        'scope' => 'MEP & Finishing Work',
+        'description' => 'MEP & Finishing work for Arriyadh Development Authority project, supporting urban development initiatives.',
+        'specs' => [
+            'Scope of Work' => 'MEP & Finishing Work',
+            'Contract Value' => '5.5 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Finished'
+        ]
+    ],
+    'riyadh-metro' => [
+        'title' => 'Riyadh Metro Project',
+        'category' => 'Infrastructure',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '8 MM SAR',
+        'scope' => 'Civil & MEP Work',
+        'description' => 'Civil & MEP work for the Riyadh Metro Project. Handed over on 10 January 2017. A critical infrastructure project supporting Riyadh\'s public transportation system.',
+        'specs' => [
+            'Scope of Work' => 'Civil & MEP Work',
+            'Contract Value' => '8 Million SAR',
+            'Location' => 'Riyadh',
+            'Handing Over Date' => '10 January 2017',
+            'Status' => 'Handed Over'
+        ]
+    ],
+    'yammam-cement' => [
+        'title' => 'Yammam Cement Factory Project',
+        'category' => 'Industrial',
+        'status' => 'completed',
+        'location' => 'Yammam',
+        'contract_value' => '8 MM SAR',
+        'scope' => 'MEP',
+        'description' => 'MEP work for Yammam Cement Factory. Handed over on 10 January 2017. Industrial MEP systems for cement production facility.',
+        'specs' => [
+            'Scope of Work' => 'MEP',
+            'Contract Value' => '8 Million SAR',
+            'Location' => 'Yammam',
+            'Handing Over Date' => '10 January 2017',
+            'Status' => 'Handed Over'
+        ]
+    ],
+    'salboukh-station' => [
+        'title' => 'SSEM-NWC-Salboukh Station',
+        'category' => 'Infrastructure',
+        'status' => 'completed',
+        'location' => 'Salboukh',
+        'contract_value' => '6.5 MM SAR',
+        'scope' => 'Structural, Mechanical and Finishing',
+        'description' => 'Structural, Mechanical and Finishing work for Salboukh station. Water infrastructure project in Salboukh region.',
+        'specs' => [
+            'Scope of Work' => 'Structural, Mechanical and Finishing',
+            'Contract Value' => '6.5 Million SAR',
+            'Location' => 'Salboukh',
+            'Status' => 'Completed'
+        ]
+    ],
+    'california-compound' => [
+        'title' => 'California Compound',
+        'category' => 'Residential',
+        'status' => 'completed',
+        'location' => 'Riyadh - Exit 7',
+        'contract_value' => '33 MM SAR',
+        'scope' => 'Civil & MEP',
+        'description' => 'Large-scale residential compound project including comprehensive civil & MEP work. A major residential development in Riyadh.',
+        'specs' => [
+            'Scope of Work' => 'Civil & MEP',
+            'Contract Value' => '33 Million SAR',
+            'Location' => 'Riyadh - Exit 7',
+            'Status' => 'Completed'
+        ]
+    ],
+    'al-rashed-palace' => [
+        'title' => 'Al Rashed Palace',
+        'category' => 'Residential',
+        'status' => 'completed',
+        'location' => 'Riyadh Exit #2',
+        'contract_value' => '10 MM SAR',
+        'scope' => 'MEP',
+        'description' => 'MEP work for Al Rashed Palace. Prestigious residential project with comprehensive mechanical, electrical, and plumbing systems.',
+        'specs' => [
+            'Scope of Work' => 'MEP',
+            'Contract Value' => '10 Million SAR',
+            'Location' => 'Riyadh Exit #2',
+            'Status' => 'Completed'
+        ]
+    ],
+    'ballan-tower' => [
+        'title' => 'Ballan Commercial Tower',
+        'category' => 'Commercial',
+        'status' => 'completed',
+        'location' => 'Riyadh',
+        'contract_value' => '6 MM SAR',
+        'scope' => 'MEP',
+        'description' => 'MEP work for Ballan Commercial Tower. Structural work 8,000 sq/m. Modern commercial tower with advanced MEP systems.',
+        'specs' => [
+            'Scope of Work' => 'MEP',
+            'Structural Work' => '8,000 sq/m',
+            'Contract Value' => '6 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'Completed'
+        ]
+    ]
+];
+
+// Get project slug from URL
+$project_slug = isset($_GET['project']) ? $_GET['project'] : 'lamar-towers';
+
+// Get project data or default to first project
+$project = isset($projects[$project_slug]) ? $projects[$project_slug] : $projects['lamar-towers'];
+
+// Helper function to get status class
+function getStatusClass($status) {
+    $status = strtolower($status);
+    if (strpos($status, 'completed') !== false || strpos($status, 'finished') !== false || strpos($status, 'handed') !== false) {
+        return 'completed';
+    } elseif (strpos($status, 'progress') !== false || strpos($status, 'going') !== false) {
+        return 'in-progress';
+    }
+    return 'completed';
+}
+
+?>

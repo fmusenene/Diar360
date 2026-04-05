@@ -9,6 +9,21 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../functions/functions.php';
 require_once __DIR__ . '/../functions/language.php';
 
+// Load admin settings for dynamic contact information
+$admin_settings_file = __DIR__ . '/../config/admin-settings.php';
+$site_settings = [];
+$admin_password = 'diar360_admin_2024'; // Default fallback
+
+if (file_exists($admin_settings_file)) {
+    include $admin_settings_file;
+}
+
+// Use admin settings if available, otherwise fall back to config constants
+$site_name = isset($site_settings['site_name']) ? $site_settings['site_name'] : SITE_NAME;
+$admin_email = isset($site_settings['admin_email']) ? $site_settings['admin_email'] : SITE_EMAIL;
+$company_phone = isset($site_settings['company_phone']) ? $site_settings['company_phone'] : SITE_PHONE;
+$company_address = isset($site_settings['company_address']) ? $site_settings['company_address'] : SITE_ADDRESS;
+
 // Initialize session if not started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -326,8 +341,8 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     <div class="topbar d-flex align-items-center dark-background">
       <div class="container d-flex justify-content-center justify-content-md-between position-relative">
         <div class="contact-info d-flex align-items-center">
-          <i class="bi bi-envelope d-flex align-items-center"><a href="mailto:<?php echo e(CONTACT_EMAIL); ?>"><?php echo e(CONTACT_EMAIL); ?></a></i>
-          <i class="bi bi-phone d-flex align-items-center ms-4"><?php echo formatPhoneNumber(SITE_PHONE); ?></i>
+          <i class="bi bi-envelope d-flex align-items-center"><a href="mailto:<?php echo e($admin_email); ?>"><?php echo e($admin_email); ?></a></i>
+          <i class="bi bi-phone d-flex align-items-center ms-4"><?php echo formatPhoneNumber($company_phone); ?></i>
         </div>
         <div class="social-links d-none d-md-flex align-items-center">
           <!-- Language Switcher - Desktop -->

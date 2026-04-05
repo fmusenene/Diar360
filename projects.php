@@ -3,6 +3,24 @@
  * Projects Page
  */
 
+// Check for maintenance mode
+$settings_file = __DIR__ . '/config/admin-settings.php';
+$maintenance_mode = false;
+
+if (file_exists($settings_file)) {
+    include $settings_file;
+    if (isset($site_settings['maintenance_mode']) && $site_settings['maintenance_mode'] === '1') {
+        // Allow admin access during maintenance
+        $is_admin = isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true;
+        if (!$is_admin) {
+            // Redirect to maintenance page
+            header('Location: maintenance.php');
+            exit;
+        }
+        $maintenance_mode = true;
+    }
+}
+
 // Include header
 require_once __DIR__ . '/include/header.php';
 
@@ -16,13 +34,11 @@ require_once __DIR__ . '/config/projects-data.php';
 function getProjectField($projectSlug, $field) {
     $translationKey = 'project_' . $projectSlug . '_' . $field;
     $translated = t($translationKey);
-    
     // If translation exists and is different from key, use it
     if ($translated !== $translationKey) {
         // Convert numbers in the translated text
         return convertNumbersInText($translated);
     }
-    
     // Otherwise return empty (will use fallback)
     return '';
 }
@@ -56,7 +72,6 @@ function getLocationTranslation($location) {
     if ($translated !== $exactKey) {
         return convertNumbersInText($translated);
     }
-    
     // Try common location patterns
     $locationMap = [
         'King Fahd Road, Riyadh' => 'king_fahd_road_riyadh',
@@ -66,14 +81,12 @@ function getLocationTranslation($location) {
         'Corniche Road, Jeddah' => 'corniche_road_jeddah',
         'Al-Fatiha, Jazan' => 'al_fatiha_jazan',
     ];
-    
     if (isset($locationMap[$location])) {
         $translated = t($locationMap[$location]);
         if ($translated !== $locationMap[$location]) {
             return convertNumbersInText($translated);
         }
     }
-    
     // Fallback: try individual words
     $words = preg_split('/[\s,\-#]+/', $location);
     $translatedParts = [];
@@ -84,12 +97,10 @@ function getLocationTranslation($location) {
             $translatedParts[] = ($wordTranslated !== $wordKey) ? $wordTranslated : $word;
         }
     }
-    
     if (count($translatedParts) > 0) {
         $result = implode(' ', $translatedParts);
         return convertNumbersInText($result);
     }
-    
     return convertNumbersInText($location);
 }
 ?>
@@ -115,13 +126,18 @@ function getLocationTranslation($location) {
       <div class="container" data-aos="fade-up" data-aos-delay="100">
 
         <div class="projects-grid">
-          
           <!-- Makkah Projects -->
+          <?php
+          // Check if makkah-chilled-water is visible
+          $makkahChilledWaterVisible = isset($projects['makkah-chilled-water']['visible']) ? $projects['makkah-chilled-water']['visible'] : '0';
+          if ($makkahChilledWaterVisible === '1' || $makkahChilledWaterVisible === 1) {
+          ?>
+
           <div class="project-item" data-aos="zoom-in" data-aos-delay="50">
             <div class="project-content">
               <div class="project-header">
                 <span class="project-category"><?php echo t('project_category_mep') !== 'project_category_mep' ? t('project_category_mep') : 'MEP'; ?></span>
-                <span class="project-status completed"><?php echo t('projects_completed'); ?></span>
+                <span class="project-status completed"><?php echo getStatusLabel('completed'); ?></span>
               </div>
               <h3 class="project-title"><?php echo getProjectField('makkah-chilled-water', 'title') ?: 'Makkah Project - Chilled Water'; ?></h3>
               <div class="project-details">
@@ -155,12 +171,19 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if makkah-duct-work project is visible
+          $makkahDuctWorkVisible = isset($projects['makkah-duct-work']['visible']) ? $projects['makkah-duct-work']['visible'] : '0';
+          if ($makkahDuctWorkVisible === '1' || $makkahDuctWorkVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="75">
             <div class="project-content">
               <div class="project-header">
                 <span class="project-category"><?php echo t('project_category_mep') !== 'project_category_mep' ? t('project_category_mep') : 'MEP'; ?></span>
-                <span class="project-status completed"><?php echo t('projects_completed'); ?></span>
+                <span class="project-status completed"><?php echo getStatusLabel('completed'); ?></span>
               </div>
               <h3 class="project-title"><?php echo getProjectField('makkah-duct-work', 'title') ?: 'Makkah Project - Duct Work'; ?></h3>
               <div class="project-details">
@@ -194,7 +217,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
 
+          <?php
+          // Check if makkah-electrical project is visible
+          $makkahElectricalVisible = isset($projects['makkah-electrical']['visible']) ? $projects['makkah-electrical']['visible'] : '0';
+          if ($makkahElectricalVisible === '1' || $makkahElectricalVisible === 1) {
+          ?>
           <div class="project-item" data-aos="zoom-in" data-aos-delay="100">
             <div class="project-content">
               <div class="project-header">
@@ -233,6 +262,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if rimal-project is visible
+          $rimalProjectVisible = isset($projects['rimal-project']['visible']) ? $projects['rimal-project']['visible'] : '0';
+          if ($rimalProjectVisible === '1' || $rimalProjectVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="125">
             <div class="project-content">
@@ -272,6 +308,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if exit-9-project is visible
+          $exit9ProjectVisible = isset($projects['exit-9-project']['visible']) ? $projects['exit-9-project']['visible'] : '0';
+          if ($exit9ProjectVisible === '1' || $exit9ProjectVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="150">
             <div class="project-content">
@@ -311,6 +354,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if lamar-towers is visible
+          $lamarTowersVisible = isset($projects['lamar-towers']['visible']) ? $projects['lamar-towers']['visible'] : '0';
+          if ($lamarTowersVisible === '1' || $lamarTowersVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="100">
             <div class="project-content">
@@ -350,6 +400,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if elegance-tower is visible
+          $eleganceTowerVisible = isset($projects['elegance-tower']['visible']) ? $projects['elegance-tower']['visible'] : '0';
+          if ($eleganceTowerVisible === '1' || $eleganceTowerVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="200">
             <div class="project-content">
@@ -389,6 +446,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if 309-310-tower-kafd is visible
+          $tower309310KafdVisible = isset($projects['309-310-tower-kafd']['visible']) ? $projects['309-310-tower-kafd']['visible'] : '0';
+          if ($tower309310KafdVisible === '1' || $tower309310KafdVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="300">
             <div class="project-content">
@@ -428,6 +492,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if riyadh-metro is visible
+          $riyadhMetroVisible = isset($projects['riyadh-metro']['visible']) ? $projects['riyadh-metro']['visible'] : '0';
+          if ($riyadhMetroVisible === '1' || $riyadhMetroVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="100">
             <div class="project-content">
@@ -467,6 +538,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if shaqra-roman-theater is visible
+          $shaqraRomanTheaterVisible = isset($projects['shaqra-roman-theater']['visible']) ? $projects['shaqra-roman-theater']['visible'] : '0';
+          if ($shaqraRomanTheaterVisible === '1' || $shaqraRomanTheaterVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="200">
             <div class="project-content">
@@ -506,6 +584,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if saudi-press-agency is visible
+          $saudiPressAgencyVisible = isset($projects['saudi-press-agency']['visible']) ? $projects['saudi-press-agency']['visible'] : '0';
+          if ($saudiPressAgencyVisible === '1' || $saudiPressAgencyVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="300">
             <div class="project-content">
@@ -545,6 +630,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if ramla-tower is visible
+          $ramlaTowerVisible = isset($projects['ramla-tower']['visible']) ? $projects['ramla-tower']['visible'] : '0';
+          if ($ramlaTowerVisible === '1' || $ramlaTowerVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="100">
             <div class="project-content">
@@ -584,6 +676,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if al-rimal-showrooms is visible
+          $alRimalShowroomsVisible = isset($projects['al-rimal-showrooms']['visible']) ? $projects['al-rimal-showrooms']['visible'] : '0';
+          if ($alRimalShowroomsVisible === '1' || $alRimalShowroomsVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="200">
             <div class="project-content">
@@ -623,6 +722,14 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+
+          <?php
+          // Check if water-pump-station is visible
+          $waterPumpStationVisible = isset($projects['water-pump-station']['visible']) ? $projects['water-pump-station']['visible'] : '0';
+          if ($waterPumpStationVisible === '1' || $waterPumpStationVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="300">
             <div class="project-content">
@@ -659,9 +766,6 @@ function getLocationTranslation($location) {
               <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-10.webp" alt="Water Pump House Station" class="img-fluid">
               <div class="project-badge">
                 <i class="bi bi-award"></i>
-              </div>
-            </div>
-          </div><!-- End Project Item -->
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="100">
             <div class="project-content">
@@ -701,6 +805,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if al-wassil-tower is visible
+          $alWassilTowerVisible = isset($projects['al-wassil-tower']['visible']) ? $projects['al-wassil-tower']['visible'] : '0';
+          if ($alWassilTowerVisible === '1' || $alWassilTowerVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="200">
             <div class="project-content">
@@ -740,6 +851,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if al-swailim-tower is visible
+          $alSwailimTowerVisible = isset($projects['al-swailim-tower']['visible']) ? $projects['al-swailim-tower']['visible'] : '0';
+          if ($alSwailimTowerVisible === '1' || $alSwailimTowerVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="300">
             <div class="project-content">
@@ -779,6 +897,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if mr-atif-project is visible
+          $mrAtifProjectVisible = isset($projects['mr-atif-project']['visible']) ? $projects['mr-atif-project']['visible'] : '0';
+          if ($mrAtifProjectVisible === '1' || $mrAtifProjectVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="100">
             <div class="project-content">
@@ -818,6 +943,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if mr-saleh-project is visible
+          $mrSalehProjectVisible = isset($projects['mr-saleh-project']['visible']) ? $projects['mr-saleh-project']['visible'] : '0';
+          if ($mrSalehProjectVisible === '1' || $mrSalehProjectVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="125">
             <div class="project-content">
@@ -857,6 +989,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if princess-jawaher is visible
+          $princessJawaherVisible = isset($projects['princess-jawaher']['visible']) ? $projects['princess-jawaher']['visible'] : '0';
+          if ($princessJawaherVisible === '1' || $princessJawaherVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="150">
             <div class="project-content">
@@ -896,6 +1035,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if nwc-mep is visible
+          $nwcMepVisible = isset($projects['nwc-mep']['visible']) ? $projects['nwc-mep']['visible'] : '0';
+          if ($nwcMepVisible === '1' || $nwcMepVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="175">
             <div class="project-content">
@@ -935,6 +1081,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if nwc-civil-mep is visible
+          $nwcCivilMepVisible = isset($projects['nwc-civil-mep']['visible']) ? $projects['nwc-civil-mep']['visible'] : '0';
+          if ($nwcCivilMepVisible === '1' || $nwcCivilMepVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="200">
             <div class="project-content">
@@ -974,6 +1127,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if riyadh-development is visible
+          $riyadhDevelopmentVisible = isset($projects['riyadh-development']['visible']) ? $projects['riyadh-development']['visible'] : '0';
+          if ($riyadhDevelopmentVisible === '1' || $riyadhDevelopmentVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="225">
             <div class="project-content">
@@ -1013,6 +1173,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if yammam-cement is visible
+          $yammamCementVisible = isset($projects['yammam-cement']['visible']) ? $projects['yammam-cement']['visible'] : '0';
+          if ($yammamCementVisible === '1' || $yammamCementVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="250">
             <div class="project-content">
@@ -1052,6 +1219,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if salboukh-station is visible
+          $salboukhStationVisible = isset($projects['salboukh-station']['visible']) ? $projects['salboukh-station']['visible'] : '0';
+          if ($salboukhStationVisible === '1' || $salboukhStationVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="275">
             <div class="project-content">
@@ -1085,14 +1259,67 @@ function getLocationTranslation($location) {
               </a>
             </div>
             <div class="project-visual">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-6.webp" alt="SSEM-NWC-Salboukh Station" class="img-fluid">
+              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-10.webp" alt="SSEM-NWC-Salboukh Station" class="img-fluid">
+              <div class="project-badge">
+                <i class="bi bi-tools"></i>
+              </div>
+            </div>
+          </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if california-compound is visible
+          $californiaCompoundVisible = isset($projects['california-compound']['visible']) ? $projects['california-compound']['visible'] : '0';
+          if ($californiaCompoundVisible === '1' || $californiaCompoundVisible === 1) {
+          ?>
+
+          <div class="project-item" data-aos="zoom-in" data-aos-delay="300">
+            <div class="project-content">
+              <div class="project-header">
+                <span class="project-category"><?php echo getCategoryTranslation('Residential'); ?></span>
+                <span class="project-status completed"><?php echo t('projects_completed'); ?></span>
+              </div>
+              <h3 class="project-title"><?php echo getProjectField('california-compound', 'title') ?: 'California Compound'; ?></h3>
+              <div class="project-details">
+                <div class="project-info">
+                  <p><?php echo getProjectField('california-compound', 'description') ?: 'Civil & MEP work for California Compound residential project.'; ?></p>
+                  <div class="project-specs">
+                    <span class="spec-item">
+                      <i class="bi bi-house"></i>
+                      <?php echo t('project_category_residential') !== 'project_category_residential' ? t('project_category_residential') : 'Residential'; ?>
+                    </span>
+                    <span class="spec-item">
+                      <i class="bi bi-currency-dollar"></i>
+                      <?php echo convertNumbers('15'); ?> <?php echo t('mm_sar'); ?>
+                    </span>
+                  </div>
+                </div>
+                <div class="project-location">
+                  <i class="bi bi-geo-alt-fill"></i>
+                  <span><?php echo getLocationTranslation('Riyadh Exit 7'); ?></span>
+                </div>
+              </div>
+              <a href="project-details.php?project=california-compound" class="project-link">
+                <span><?php echo t('projects_view_project'); ?></span>
+                <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+            <div class="project-visual">
+              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-4.webp" alt="California Compound" class="img-fluid">
               <div class="project-badge">
                 <i class="bi bi-award"></i>
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
 
-          <div class="project-item" data-aos="zoom-in" data-aos-delay="300">
+          <?php
+          // Check if al-rashed-palace is visible
+          $alRashedPalaceVisible = isset($projects['al-rashed-palace']['visible']) ? $projects['al-rashed-palace']['visible'] : '0';
+          if ($alRashedPalaceVisible === '1' || $alRashedPalaceVisible === 1) {
+          ?>
+
+          <div class="project-item" data-aos="zoom-in" data-aos-delay="325">
             <div class="project-content">
               <div class="project-header">
                 <span class="project-category"><?php echo getCategoryTranslation('Residential'); ?></span>
@@ -1130,6 +1357,13 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if ballan-tower is visible
+          $ballanTowerVisible = isset($projects['ballan-tower']['visible']) ? $projects['ballan-tower']['visible'] : '0';
+          if ($ballanTowerVisible === '1' || $ballanTowerVisible === 1) {
+          ?>
 
           <div class="project-item" data-aos="zoom-in" data-aos-delay="325">
             <div class="project-content">
@@ -1169,6 +1403,120 @@ function getLocationTranslation($location) {
               </div>
             </div>
           </div><!-- End Project Item -->
+          <?php } ?>
+
+          <?php
+          // Check if king-fahd-stadium is visible
+          $kingFahdStadiumVisible = isset($projects['king-fahd-stadium']['visible']) ? $projects['king-fahd-stadium']['visible'] : '0';
+          if ($kingFahdStadiumVisible === '1' || $kingFahdStadiumVisible === 1) {
+          ?>
+
+          <div class="project-item" data-aos="zoom-in" data-aos-delay="350">
+            <div class="project-content">
+              <div class="project-header">
+                <span class="project-category"><?php echo getCategoryTranslation('Infrastructure'); ?></span>
+                <span class="project-status completed"><?php echo getStatusLabel('completed'); ?></span>
+              </div>
+              <h3 class="project-title"><?php echo getProjectField('king-fahd-stadium', 'title') ?: 'King Fahd International Sports City Stadium'; ?></h3>
+              <div class="project-details">
+                <div class="project-info">
+                  <p><?php echo getProjectField('king-fahd-stadium', 'description') ?: 'Comprehensive construction project for King Fahd International Sports City Stadium, including civil works, MEP systems, and high-quality finishing works.'; ?></p>
+                  <div class="project-specs">
+                    <span class="spec-item">
+                      <i class="bi bi-building"></i>
+                      <?php echo t('civil_mep_finishing'); ?>
+                    </span>
+                    <span class="spec-item">
+                      <i class="bi bi-currency-dollar"></i>
+                      <?php echo convertNumbers('25'); ?> <?php echo t('mm_sar'); ?>
+                    </span>
+                  </div>
+                </div>
+                <div class="project-location">
+                  <i class="bi bi-geo-alt-fill"></i>
+                  <span><?php echo getLocationTranslation('Riyadh'); ?></span>
+                </div>
+              </div>
+              <a href="project-details.php?project=king-fahd-stadium" class="project-link">
+                <span><?php echo t('projects_view_project'); ?></span>
+                <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+            <div class="project-visual">
+              <img src="<?php echo ASSETS_PATH; ?>/img/projects/king-fahd-stadium.webp" alt="King Fahd International Sports City Stadium" class="img-fluid" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp'">
+              <div class="project-badge">
+                <i class="<?php echo getStatusIcon('completed'); ?>"></i>
+              </div>
+            </div>
+          </div><!-- End Project Item -->
+          <?php } ?>
+
+          <!-- Dynamic Projects Section -->
+          <?php
+          // Get all projects that are not already hardcoded above
+          $hardcoded_projects = [
+              'makkah-chilled-water', 'makkah-duct-work', 'makkah-electrical', 'rimal-project',
+              'exit-9-project', 'lamar-towers', 'elegance-tower', 'ramla-tower',
+              '309-310-tower-kafd', 'al-wassil-tower', 'al-swailim-tower', 'saudi-press-agency',
+              'shaqra-roman-theater', 'al-rimal-showrooms', 'water-pump-station', 'mr-atif-project',
+              'mr-saleh-project', 'princess-jawaher', 'nwc-mep', 'nwc-civil-mep',
+              'riyadh-development', 'riyadh-metro', 'yammam-cement', 'salboukh-station',
+              'california-compound', 'al-rashed-palace', 'ballan-tower', 'king-fahd-stadium'
+          ];
+          $dynamic_delay = 400;
+          foreach ($projects as $slug => $project) {
+              if (!in_array($slug, $hardcoded_projects)) {
+                  // Only show visible projects
+                  $isVisible = isset($project['visible']) ? $project['visible'] : 0;
+                  // Convert to integer for comparison (handles both '1' and 1)
+                  $isVisible = (int)$isVisible;
+                  if ($isVisible !== 1) {
+                      continue; // Skip hidden projects
+                  }
+          ?>
+          <div class="project-item" data-aos="zoom-in" data-aos-delay="<?php echo $dynamic_delay; ?>">
+            <div class="project-content">
+              <div class="project-header">
+                <span class="project-category"><?php echo getCategoryTranslation($project['category']); ?></span>
+                <span class="project-status <?php echo getStatusClass($project['status']); ?>"><?php echo getStatusLabel($project['status']); ?></span>
+              </div>
+              <h3 class="project-title"><?php echo getProjectField($slug, 'title') ?: $project['title']; ?></h3>
+              <div class="project-details">
+                <div class="project-info">
+                  <p><?php echo getProjectField($slug, 'description') ?: $project['description']; ?></p>
+                  <div class="project-specs">
+                    <span class="spec-item">
+                      <i class="bi bi-building"></i>
+                      <?php echo htmlspecialchars($project['scope']); ?>
+                    </span>
+                    <span class="spec-item">
+                      <i class="bi bi-currency-dollar"></i>
+                      <?php echo convertNumbers(str_replace([' MM SAR', ' Million SAR'], '', $project['contract_value'])); ?> <?php echo t('mm_sar'); ?>
+                    </span>
+                  </div>
+                </div>
+                <div class="project-location">
+                  <i class="bi bi-geo-alt-fill"></i>
+                  <span><?php echo getLocationTranslation($project['location']); ?></span>
+                </div>
+              </div>
+              <a href="project-details.php?project=<?php echo $slug; ?>" class="project-link">
+                <span><?php echo t('projects_view_project'); ?></span>
+                <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+            <div class="project-visual">
+              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $slug; ?>.webp" alt="<?php echo htmlspecialchars($project['title']); ?>" class="img-fluid" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp'">
+              <div class="project-badge">
+                <i class="<?php echo getStatusIcon($project['status']); ?>"></i>
+              </div>
+            </div>
+          </div><!-- End Project Item -->
+          <?php
+              $dynamic_delay += 25;
+              }
+          }
+          ?>
 
         </div>
 
@@ -1182,3 +1530,7 @@ function getLocationTranslation($location) {
 // Include footer
 require_once __DIR__ . '/include/footer.php';
 ?>
+
+
+
+

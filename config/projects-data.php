@@ -1,25 +1,12 @@
 <?php
 /**
  * Projects Data
- * Contains all project details from Diar 360 Company Profile
  */
 
+// Include project status management
+require_once __DIR__ . '/project-status.php';
+
 $projects = [
-    'makkah-chilled-water' => [
-        'title' => 'Makkah Project - Chilled Water',
-        'category' => 'MEP',
-        'status' => 'completed',
-        'location' => 'Makkah',
-        'contract_value' => '12.5 MM SAR',
-        'scope' => 'Chilled water system installation and MEP work',
-        'description' => 'Comprehensive chilled water system installation for Makkah project, ensuring efficient cooling solutions with state-of-the-art MEP technologies.',
-        'specs' => [
-            'Scope of Work' => 'Chilled Water System',
-            'Contract Value' => '12.5 Million SAR',
-            'Location' => 'Makkah',
-            'Status' => 'Completed'
-        ]
-    ],
     'makkah-duct-work' => [
         'title' => 'Makkah Project - Duct Work',
         'category' => 'MEP',
@@ -32,13 +19,15 @@ $projects = [
             'Scope of Work' => 'Duct Work',
             'Contract Value' => '6 Million SAR',
             'Location' => 'Makkah',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'contract_pdf' => 'makkah-duct-work-2026-04-02_08-01-29-contract.pdf',
+        'visible' => '1',
     ],
     'makkah-electrical' => [
         'title' => 'Makkah Project - Electrical Work',
-        'category' => 'Electrical',
-        'status' => 'completed',
+        'category' => 'MEP',
+        'status' => 'in-progress',
         'location' => 'Makkah',
         'contract_value' => '3.2 MM SAR',
         'scope' => 'Electrical work installation and services',
@@ -47,13 +36,15 @@ $projects = [
             'Scope of Work' => 'Electrical Work',
             'Contract Value' => '3.2 Million SAR',
             'Location' => 'Makkah',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '1',
+        'contract_pdf' => 'makkah-electrical-2026-04-05_13-51-21-contract.pdf',
     ],
     'rimal-project' => [
         'title' => 'Rimal Project',
         'category' => 'Infrastructure',
-        'status' => 'completed',
+        'status' => 'planning',
         'location' => 'Riyadh',
         'contract_value' => '11 MM SAR',
         'scope' => 'Civil, Mechanical, and Electrical work',
@@ -62,13 +53,14 @@ $projects = [
             'Scope of Work' => 'Civil – Mechanical- Electrical',
             'Contract Value' => '11 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '1',
     ],
     'exit-9-project' => [
         'title' => 'Exit 9 Project',
         'category' => 'Infrastructure',
-        'status' => 'completed',
+        'status' => 'on-hold',
         'location' => 'Riyadh',
         'contract_value' => 'N/A',
         'scope' => 'Civil, Mechanical, and Electrical work',
@@ -76,12 +68,13 @@ $projects = [
         'specs' => [
             'Scope of Work' => 'Civil – Mechanical- Electrical',
             'Location' => 'Riyadh',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '1',
     ],
     'lamar-towers' => [
         'title' => 'Lamar Towers Project',
-        'category' => 'Towers',
+        'category' => 'MEP',
         'status' => 'completed',
         'location' => 'Corniche Road, Jeddah',
         'contract_value' => 'N/A',
@@ -92,12 +85,13 @@ $projects = [
             'Floors' => '2 Towers from 13th to 37th floor',
             'Location' => 'Corniche Road, Jeddah',
             'Partner' => 'TAROUK CONTRACTING COMPANY',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '1',
     ],
     'elegance-tower' => [
         'title' => 'Elegance Tower Project',
-        'category' => 'Towers',
+        'category' => 'Industrial',
         'status' => 'completed',
         'location' => 'Riyadh',
         'contract_value' => 'N/A',
@@ -108,8 +102,9 @@ $projects = [
             'Total Area' => '63,000 m²',
             'Location' => 'Riyadh',
             'Partner' => 'TAROUK CONTRACTING COMPANY',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '1',
     ],
     'ramla-tower' => [
         'title' => 'Ramla Tower Project',
@@ -124,8 +119,9 @@ $projects = [
             'Foundation' => '10,000 m³',
             'Location' => 'Riyadh',
             'Partner' => 'FIRST COMPANY',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '0',
     ],
     '309-310-tower-kafd' => [
         'title' => '309,310 Tower Project (KAFD)',
@@ -142,8 +138,8 @@ $projects = [
             'Podium' => '11 Floors with 3 Basements',
             'Location' => 'Riyadh (KAFD)',
             'Partner' => 'SAUDI BUILD COMPANY',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
     ],
     'al-wassil-tower' => [
         'title' => 'Al-Wassil Tower Project',
@@ -158,8 +154,8 @@ $projects = [
             'Total Area' => '40,000 m²',
             'Location' => 'King Fahd Road, Riyadh',
             'Partner' => 'TAROUK CONTRACTING COMPANY',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
     ],
     'al-swailim-tower' => [
         'title' => 'Al-Swailim Tower Project',
@@ -174,8 +170,8 @@ $projects = [
             'Floors' => '20 floors + 2 basements + 2 parking floors',
             'Location' => 'Olaya Road, Riyadh',
             'Partner' => 'TAROUK CONTRACTING COMPANY',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
     ],
     'saudi-press-agency' => [
         'title' => 'Saudi Press Agency HQ',
@@ -192,8 +188,8 @@ $projects = [
             'Duration' => '8 months',
             'Client' => 'SPA - Tarouk as main contractor',
             'Consultant' => 'Al Zaid',
-            'Status' => 'Handed Over'
-        ]
+            'Status' => 'Handed Over',
+        ],
     ],
     'shaqra-roman-theater' => [
         'title' => 'Shaqra Roman Theater',
@@ -207,8 +203,8 @@ $projects = [
             'Scope of Work' => 'Civil & MEP Work',
             'Contract Value' => '8 Million SAR',
             'Location' => 'Shaqra',
-            'Status' => 'ON GOING'
-        ]
+            'Status' => 'ON GOING',
+        ],
     ],
     'al-rimal-showrooms' => [
         'title' => 'Al Rimal Commercial Showrooms',
@@ -222,8 +218,8 @@ $projects = [
             'Scope of Work' => 'Earthwork, Civil, MEP, and Finishing Work',
             'Contract Value' => '8 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'ON GOING'
-        ]
+            'Status' => 'ON GOING',
+        ],
     ],
     'water-pump-station' => [
         'title' => 'Water Pump House Station Al-Fatiha',
@@ -237,8 +233,8 @@ $projects = [
             'Scope of Work' => 'Earthwork & Mechanical Work',
             'Contract Value' => '12 Million SAR',
             'Location' => 'Al-Fatiha, Jazan',
-            'Status' => 'Finished'
-        ]
+            'Status' => 'Finished',
+        ],
     ],
     'mr-atif-project' => [
         'title' => 'Mr. Atif Bin Ayez Bin Awaz Almezani Almutari',
@@ -252,8 +248,8 @@ $projects = [
             'Scope of Work' => 'Earthwork, Civil & MEP Work',
             'Contract Value' => '3 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Finished'
-        ]
+            'Status' => 'Finished',
+        ],
     ],
     'mr-saleh-project' => [
         'title' => 'Mr. Saleh Bin Al-Rasheed Allya',
@@ -267,8 +263,8 @@ $projects = [
             'Scope of Work' => 'CIVIL, FINISHES & MEP WORKS',
             'Contract Value' => '15 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Finished'
-        ]
+            'Status' => 'Finished',
+        ],
     ],
     'princess-jawaher' => [
         'title' => 'Princess Jawaher Bint Muqrin Bin Abdulaziz Al-Saud',
@@ -282,8 +278,8 @@ $projects = [
             'Scope of Work' => 'CIVIL, FINISHES & MEP WORKS',
             'Contract Value' => '6 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Finished'
-        ]
+            'Status' => 'Finished',
+        ],
     ],
     'nwc-mep' => [
         'title' => 'National Water Company - MEP Works',
@@ -297,8 +293,8 @@ $projects = [
             'Scope of Work' => 'MEP WORKS',
             'Contract Value' => '6 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Finished'
-        ]
+            'Status' => 'Finished',
+        ],
     ],
     'nwc-civil-mep' => [
         'title' => 'National Water Company - Civil & MEP',
@@ -312,8 +308,8 @@ $projects = [
             'Scope of Work' => 'Civil & MEP Work',
             'Contract Value' => '15 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'ON GOING'
-        ]
+            'Status' => 'ON GOING',
+        ],
     ],
     'riyadh-development' => [
         'title' => 'Arriyadh Development Authority',
@@ -327,8 +323,8 @@ $projects = [
             'Scope of Work' => 'MEP & Finishing Work',
             'Contract Value' => '5.5 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Finished'
-        ]
+            'Status' => 'Finished',
+        ],
     ],
     'riyadh-metro' => [
         'title' => 'Riyadh Metro Project',
@@ -343,8 +339,9 @@ $projects = [
             'Contract Value' => '8 Million SAR',
             'Location' => 'Riyadh',
             'Handing Over Date' => '10 January 2017',
-            'Status' => 'Handed Over'
-        ]
+            'Status' => 'Handed Over',
+        ],
+        'visible' => '0',
     ],
     'yammam-cement' => [
         'title' => 'Yammam Cement Factory Project',
@@ -359,8 +356,8 @@ $projects = [
             'Contract Value' => '8 Million SAR',
             'Location' => 'Yammam',
             'Handing Over Date' => '10 January 2017',
-            'Status' => 'Handed Over'
-        ]
+            'Status' => 'Handed Over',
+        ],
     ],
     'salboukh-station' => [
         'title' => 'SSEM-NWC-Salboukh Station',
@@ -374,8 +371,8 @@ $projects = [
             'Scope of Work' => 'Structural, Mechanical and Finishing',
             'Contract Value' => '6.5 Million SAR',
             'Location' => 'Salboukh',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
     ],
     'california-compound' => [
         'title' => 'California Compound',
@@ -389,8 +386,8 @@ $projects = [
             'Scope of Work' => 'Civil & MEP',
             'Contract Value' => '33 Million SAR',
             'Location' => 'Riyadh - Exit 7',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
     ],
     'al-rashed-palace' => [
         'title' => 'Al Rashed Palace',
@@ -404,8 +401,8 @@ $projects = [
             'Scope of Work' => 'MEP',
             'Contract Value' => '10 Million SAR',
             'Location' => 'Riyadh Exit #2',
-            'Status' => 'Completed'
-        ]
+            'Status' => 'Completed',
+        ],
     ],
     'ballan-tower' => [
         'title' => 'Ballan Commercial Tower',
@@ -420,26 +417,26 @@ $projects = [
             'Structural Work' => '8,000 sq/m',
             'Contract Value' => '6 Million SAR',
             'Location' => 'Riyadh',
-            'Status' => 'Completed'
-        ]
-    ]
+            'Status' => 'Completed',
+        ],
+        'visible' => '0',
+    ],
+    'king-fahd-stadium' => [
+        'title' => 'King Fahd International Sports City Stadium',
+        'category' => 'Infrastructure',
+        'status' => 'in-progress',
+        'location' => 'Riyadh',
+        'contract_value' => '25 MM SAR',
+        'scope' => 'Civil, MEP & Finishing Works',
+        'description' => 'Comprehensive construction project for King Fahd International Sports City Stadium, including civil works, MEP systems, and high-quality finishing works. A landmark sports facility showcasing DIAR 360\'s expertise in large-scale infrastructure development.',
+        'specs' => [
+            'Scope of Work' => 'Civil, MEP & Finishing Works',
+            'Project Type' => 'Sports Stadium Infrastructure',
+            'Contract Value' => '25 Million SAR',
+            'Location' => 'Riyadh',
+            'Status' => 'In Progress',
+        ],
+    ],
 ];
-
-// Get project slug from URL
-$project_slug = isset($_GET['project']) ? $_GET['project'] : 'lamar-towers';
-
-// Get project data or default to first project
-$project = isset($projects[$project_slug]) ? $projects[$project_slug] : $projects['lamar-towers'];
-
-// Helper function to get status class
-function getStatusClass($status) {
-    $status = strtolower($status);
-    if (strpos($status, 'completed') !== false || strpos($status, 'finished') !== false || strpos($status, 'handed') !== false) {
-        return 'completed';
-    } elseif (strpos($status, 'progress') !== false || strpos($status, 'going') !== false) {
-        return 'in-progress';
-    }
-    return 'completed';
-}
 
 ?>

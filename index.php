@@ -4,6 +4,24 @@
  * Homepage of the website
  */
 
+// Check for maintenance mode
+$settings_file = __DIR__ . '/config/admin-settings.php';
+$maintenance_mode = false;
+
+if (file_exists($settings_file)) {
+    include $settings_file;
+    if (isset($site_settings['maintenance_mode']) && $site_settings['maintenance_mode'] === '1') {
+        // Allow admin access during maintenance
+        $is_admin = isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true;
+        if (!$is_admin) {
+            // Redirect to maintenance page
+            header('Location: maintenance.php');
+            exit;
+        }
+        $maintenance_mode = true;
+    }
+}
+
 // Include header
 require_once __DIR__ . '/include/header.php';
 
@@ -11,7 +29,19 @@ require_once __DIR__ . '/include/header.php';
 require_once __DIR__ . '/functions/language.php';
 ?>
 
-  <main class="main">
+<?php if ($maintenance_mode): ?>
+<!-- Maintenance Mode Notification -->
+<div class="maintenance-notification fixed top-0 left-0 right-0 bg-orange-600 text-white text-center py-3 z-50">
+    <div class="container">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        <strong>Maintenance Mode Active:</strong> The website is currently under maintenance. 
+        <span class="hidden sm:inline">Regular users see a maintenance page, but you can access the site as an administrator.</span>
+        <a href="admin/projects-new.php?page=settings" class="ml-2 underline hover:no-underline">Disable in Settings</a>
+    </div>
+</div>
+<?php endif; ?>
+
+  <main class="main <?php echo $maintenance_mode ? 'mt-12' : ''; ?>">
 
     <!-- Hero Section -->
     <section id="hero" class="hero section">

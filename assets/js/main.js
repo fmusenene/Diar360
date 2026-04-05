@@ -10,15 +10,68 @@
 
   /**
    * Apply .scrolled class to the body as the page is scrolled down
+   * Advanced version with throttling and hysteresis to prevent flickering
    */
   function toggleScrolled() {
     const selectBody = document.querySelector('body');
     const selectHeader = document.querySelector('#header');
     if (!selectHeader.classList.contains('scroll-up-sticky') && !selectHeader.classList.contains('sticky-top') && !selectHeader.classList.contains('fixed-top')) return;
-    window.scrollY > 100 ? selectBody.classList.add('scrolled') : selectBody.classList.remove('scrolled');
+    
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const currentScrollState = selectBody.classList.contains('scrolled');
+    
+    // Hysteresis thresholds to prevent rapid toggling
+    const scrollDownThreshold = 120;  // Add scrolled class when scrolling down past 120px
+    const scrollUpThreshold = 80;     // Remove scrolled class when scrolling up past 80px
+    
+    // Determine if we should add or remove the scrolled class
+    let shouldAddScrolled = false;
+    
+    if (scrollY > scrollDownThreshold) {
+      shouldAddScrolled = true;
+    } else if (scrollY < scrollUpThreshold) {
+      shouldAddScrolled = false;
+    } else {
+      // Between thresholds - maintain current state
+      shouldAddScrolled = currentScrollState;
+    }
+    
+    // Only update if state needs to change
+    if (shouldAddScrolled !== currentScrollState) {
+      if (shouldAddScrolled) {
+        selectBody.classList.add('scrolled');
+      } else {
+        selectBody.classList.remove('scrolled');
+      }
+    }
   }
 
-  document.addEventListener('scroll', toggleScrolled);
+  // Advanced scroll handler with throttling to prevent performance issues
+  let scrollTicking = false;
+  let lastScrollY = 0;
+  let scrollDirection = 'down';
+  
+  function handleScroll() {
+    if (scrollTicking) return;
+    
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      const currentScrollY = window.scrollY || document.documentElement.scrollTop;
+      
+      // Track scroll direction for better hysteresis
+      if (currentScrollY > lastScrollY) {
+        scrollDirection = 'down';
+      } else if (currentScrollY < lastScrollY) {
+        scrollDirection = 'up';
+      }
+      
+      lastScrollY = currentScrollY;
+      toggleScrolled();
+      scrollTicking = false;
+    });
+  }
+
+  document.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('load', toggleScrolled);
 
   /**

@@ -43,7 +43,7 @@ require_once __DIR__ . '/functions/language.php';
                 </div>
                 <div class="card-content">
                   <h4><?php echo t('contact_location'); ?></h4>
-                  <p><?php echo e(SITE_ADDRESS); ?>, <?php echo e(SITE_CITY); ?> - KSA</p>
+                  <p><?php echo e($company_address); ?>, KSA</p>
                 </div>
               </div>
 
@@ -53,7 +53,7 @@ require_once __DIR__ . '/functions/language.php';
                 </div>
                 <div class="card-content">
                   <h4><?php echo t('contact_email_us'); ?></h4>
-                  <p><?php echo e(SITE_EMAIL); ?></p>
+                  <p><?php echo e($admin_email); ?></p>
                 </div>
               </div>
 
@@ -63,7 +63,7 @@ require_once __DIR__ . '/functions/language.php';
                 </div>
                 <div class="card-content">
                   <h4><?php echo t('contact_call_us'); ?></h4>
-                  <p><?php echo formatPhoneNumber(SITE_PHONE); ?></p>
+                  <p><?php echo formatPhoneNumber($company_phone); ?></p>
                 </div>
               </div>
 

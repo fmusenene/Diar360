@@ -47,17 +47,17 @@ require_once __DIR__ . '/functions/language.php';
                           </div>
                           <div class="contact-details">
                             <h4><?php echo t('quote_call_us'); ?></h4>
-                            <p><?php echo formatPhoneNumber(SITE_PHONE); ?></p>
+                            <p><?php echo formatPhoneNumber($company_phone); ?></p>
                           </div>
                         </div>
 
-                        <div class="contact-item" data-aos="fade-right" data-aos-delay="250">
+                        <div class="contact-item">
                           <div class="contact-icon">
-                            <i class="bi bi-envelope"></i>
+                            <i class="bi bi-envelope-fill"></i>
                           </div>
                           <div class="contact-details">
                             <h4><?php echo t('quote_email_us'); ?></h4>
-                            <p><?php echo e(SITE_EMAIL); ?></p>
+                            <p><?php echo e($admin_email); ?></p>
                           </div>
                         </div>
 

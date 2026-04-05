@@ -721,6 +721,25 @@ return [
     // Additional category translations
     'project_category_government' => 'حكومي',
     'project_category_industrial' => 'صناعي',
+    
+    // King Fahd Stadium Project Translations (Arabic)
+    'project_king-fahd-stadium_title' => 'ملعب المدينة الدولية الرياضية للملك فهد',
+    'project_king-fahd-stadium_description' => 'مشروع بناء شامل لملعب المدينة الدولية الرياضية للملك فهد، بما في ذلك الأعمال المدنية، وأنظمة MEP، وأعمال التشطيب عالية الجودة. منشأة رياضية بارزة تعرض خبرة ديار ٣٦٠ في تطوير البنية التحتية على نطاق واسع.',
+    'project_king-fahd-stadium_scope' => 'أعمال مدنية، MEP والتشطيبات',
+    'project_king-fahd-stadium_spec_scope_of_work' => 'أعمال مدنية، MEP والتشطيبات',
+    'project_king-fahd-stadium_spec_project_type' => 'بنية تحتية للملعب الرياضي',
+    'project_king-fahd-stadium_spec_contract_value' => '٢٥ مليون ريال سعودي',
+    'project_king-fahd-stadium_spec_location' => 'الرياض',
+    'project_king-fahd-stadium_spec_status' => 'مكتمل',
+    
+    // Project status translations (Arabic)
+    'projects_completed' => 'مكتمل',
+    'projects_in_progress' => 'قيد التنفيذ',
+    'projects_planning' => 'التخطيط',
+    'projects_on_hold' => 'معلق',
+    
+    // Additional translations for stadium project (Arabic)
+    'civil_mep_finishing' => 'أعمال مدنية، MEP والتشطيبات',
 ];
 
 ?>

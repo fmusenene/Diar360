@@ -12,6 +12,10 @@ require_once __DIR__ . '/functions/language.php';
 // Load projects data (this will set $project and $project_slug)
 require_once __DIR__ . '/config/projects-data.php';
 
+// Get project from URL parameter
+$project_slug = isset($_GET['project']) ? $_GET['project'] : '';
+$project = isset($projects[$project_slug]) ? $projects[$project_slug] : null;
+
 // Helper function to get translated project field
 function getProjectField($project, $field, $slug) {
     $translationKey = 'project_' . $slug . '_' . $field;
@@ -208,17 +212,17 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
           <div class="row align-items-center">
             <div class="col-lg-6">
               <div class="project-banner">
-                <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-4.webp" alt="<?php echo e(getProjectField($project, 'title', $project_slug)); ?>" class="img-fluid">
+                <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>.webp" alt="<?php echo e(getProjectField($project, 'title', $project_slug)); ?>" class="img-fluid" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-4.webp'">
                 <div class="banner-badge">
-                  <span class="status-indicator <?php echo getStatusClass($project['status']); ?>"><?php echo ($project['status'] === 'completed' || strpos(strtolower($project['status']), 'finished') !== false || strpos(strtolower($project['status']), 'handed') !== false) ? t('projects_completed') : t('projects_in_progress'); ?></span>
+                  <span class="status-indicator <?php echo $project ? getStatusClass($project['status']) : ''; ?>"><?php echo $project ? getStatusLabel($project['status']) : ''; ?></span>
                 </div>
               </div>
             </div>
             <div class="col-lg-6">
               <div class="project-summary">
                 <div class="project-tags">
-                  <span class="tag"><?php echo t('project_category_' . strtolower($project['category'])) !== 'project_category_' . strtolower($project['category']) ? t('project_category_' . strtolower($project['category'])) : e($project['category']); ?></span>
-                  <span class="tag"><?php echo e($project['location']); ?></span>
+                  <span class="tag"><?php echo $project ? (t('project_category_' . strtolower($project['category'])) !== 'project_category_' . strtolower($project['category']) ? t('project_category_' . strtolower($project['category'])) : e($project['category'])) : ''; ?></span>
+                  <span class="tag"><?php echo $project ? e($project['location']) : ''; ?></span>
                 </div>
                 <h1 class="main-title"><?php echo e(getProjectField($project, 'title', $project_slug)); ?></h1>
                 <p class="summary-text"><?php echo e(getProjectField($project, 'description', $project_slug)); ?></p>
@@ -227,7 +231,8 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
                   <div class="metric-row">
                     <div class="metric">
                       <span class="metric-title"><?php echo t('project_details_location'); ?></span>
-                      <span class="metric-data"><?php echo e($project['location']); ?></span>
+                      <span class="metric-data"><?php echo $project ? e($project['location']) : ''; ?></span>
+                      <span class="metric-data"><?php echo $project ? e($project['location']) : ''; ?></span>
                     </div>
                     <?php if (!empty($project['contract_value']) && $project['contract_value'] !== 'N/A'): ?>
                     <div class="metric">
@@ -243,7 +248,7 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
                     </div>
                     <div class="metric">
                       <span class="metric-title"><?php echo t('project_details_status'); ?></span>
-                      <span class="metric-data"><?php echo ($project['status'] === 'completed' || strpos(strtolower($project['status']), 'finished') !== false || strpos(strtolower($project['status']), 'handed') !== false) ? t('projects_completed') : t('projects_in_progress'); ?></span>
+                      <span class="metric-data"><?php echo $project ? getStatusLabel($project['status']) : ''; ?></span>
                     </div>
                   </div>
                 </div>
@@ -255,25 +260,25 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
         <div class="visual-showcase" data-aos="fade-up" data-aos-delay="300">
           <div class="showcase-grid">
             <div class="showcase-item large">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-10.webp" alt="<?php echo t('building_progress'); ?>" class="img-fluid" loading="lazy">
+              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-construction.webp" alt="<?php echo t('building_progress'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-10.webp'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('construction_phase'); ?></span>
               </div>
             </div>
             <div class="showcase-item">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-2.webp" alt="<?php echo t('foundation_work'); ?>" class="img-fluid" loading="lazy">
+              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-foundation.webp" alt="<?php echo t('foundation_work'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-2.webp'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('foundation'); ?></span>
               </div>
             </div>
             <div class="showcase-item">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-6.webp" alt="<?php echo t('interior_planning'); ?>" class="img-fluid" loading="lazy">
+              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-interior.webp" alt="<?php echo t('interior_planning'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-6.webp'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('interior_design'); ?></span>
               </div>
             </div>
             <div class="showcase-item tall">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp" alt="<?php echo t('architectural_detail'); ?>" class="img-fluid" loading="lazy">
+              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-architecture.webp" alt="<?php echo t('architectural_detail'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('architecture'); ?></span>
               </div>
@@ -325,15 +330,17 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
               <div class="specifications-panel">
                 <h4><?php echo t('project_details_specifications'); ?></h4>
                 <div class="spec-table">
+                  <?php if ($project && isset($project['specs'])): ?>
                   <?php foreach ($project['specs'] as $spec_name => $spec_value): ?>
                   <div class="spec-row">
                     <span class="spec-name"><?php echo t('project_spec_' . strtolower(str_replace(' ', '_', $spec_name))) !== 'project_spec_' . strtolower(str_replace(' ', '_', $spec_name)) ? t('project_spec_' . strtolower(str_replace(' ', '_', $spec_name))) : e($spec_name); ?></span>
                     <span class="spec-detail"><?php echo getProjectSpecValue($spec_name, $spec_value, $project_slug); ?></span>
                   </div>
                   <?php endforeach; ?>
+                  <?php endif; ?>
                 </div>
 
-                <?php if ($project['status'] === 'in-progress' || strpos(strtolower($project['status']), 'going') !== false): ?>
+                <?php if ($project && ($project['status'] === 'in-progress' || strpos(strtolower($project['status']), 'going') !== false)): ?>
                 <div class="progress-indicator">
                   <div class="progress-header">
                     <span class="progress-label"><?php echo t('project_details_progress'); ?></span>
@@ -347,7 +354,7 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
                 <div class="progress-indicator">
                   <div class="progress-header">
                     <span class="progress-label"><?php echo t('project_details_status'); ?></span>
-                    <span class="progress-percentage"><?php echo ($project['status'] === 'completed' || strpos(strtolower($project['status']), 'finished') !== false || strpos(strtolower($project['status']), 'handed') !== false) ? t('projects_completed') : t('projects_in_progress'); ?></span>
+                    <span class="progress-percentage"><?php echo $project ? getStatusLabel($project['status']) : ''; ?></span>
                   </div>
                   <div class="progress-bar-container">
                     <div class="progress-bar" style="width: <?php echo convertNumbers('100'); ?>%"></div>

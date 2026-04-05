@@ -10,6 +10,21 @@ if (!defined('SITE_NAME')) {
     require_once __DIR__ . '/../functions/functions.php';
     require_once __DIR__ . '/../functions/language.php';
 }
+
+// Load admin settings for dynamic contact information
+$admin_settings_file = __DIR__ . '/../config/admin-settings.php';
+$site_settings = [];
+$admin_password = 'diar360_admin_2024'; // Default fallback
+
+if (file_exists($admin_settings_file)) {
+    include $admin_settings_file;
+}
+
+// Use admin settings if available, otherwise fall back to config constants
+$site_name = isset($site_settings['site_name']) ? $site_settings['site_name'] : SITE_NAME;
+$admin_email = isset($site_settings['admin_email']) ? $site_settings['admin_email'] : SITE_EMAIL;
+$company_phone = isset($site_settings['company_phone']) ? $site_settings['company_phone'] : SITE_PHONE;
+$company_address = isset($site_settings['company_address']) ? $site_settings['company_address'] : SITE_ADDRESS;
 ?>
   <footer id="footer" class="footer dark-background">
 
@@ -17,7 +32,7 @@ if (!defined('SITE_NAME')) {
       <div class="row gy-4">
         <div class="col-lg-5 col-md-12 footer-about">
           <a href="index.php" class="logo d-flex align-items-center">
-            <span class="sitename"><?php echo e(SITE_NAME); ?></span>
+            <span class="sitename"><?php echo e($site_name); ?></span>
           </a>
           <p><?php echo t('company_description'); ?></p>
           <div class="social-links d-flex mt-4">
@@ -52,17 +67,17 @@ if (!defined('SITE_NAME')) {
 
         <div class="col-lg-3 col-md-12 footer-contact text-center text-md-start">
           <h4><?php echo t('footer_contact_us'); ?></h4>
-          <p><?php echo e(SITE_ADDRESS); ?></p>
-          <p><?php echo e(SITE_CITY); ?> - KSA</p>
-          <p class="mt-4"><strong><?php echo t('footer_phone'); ?>:</strong> <?php echo formatPhoneNumber(SITE_PHONE); ?></p>
-          <p><strong><?php echo t('footer_email'); ?>:</strong> <span><?php echo e(SITE_EMAIL); ?></span></p>
+          <p><?php echo e($company_address); ?></p>
+          <p>KSA</p>
+          <p class="mt-4"><strong><?php echo t('footer_phone'); ?>:</strong> <?php echo formatPhoneNumber($company_phone); ?></p>
+          <p><strong><?php echo t('footer_email'); ?>:</strong> <span><?php echo e($admin_email); ?></span></p>
         </div>
 
       </div>
     </div>
 
     <div class="container copyright text-center mt-4">
-      <p>© <span><?php echo t('footer_copyright'); ?></span> <?php echo convertNumbers(date('Y')); ?> <strong class="px-1 sitename"><?php echo e(SITE_NAME); ?></strong> <span><?php echo t('footer_rights'); ?></span></p>
+      <p>© <span><?php echo t('footer_copyright'); ?></span> <?php echo convertNumbers(date('Y')); ?> <strong class="px-1 sitename"><?php echo e($site_name); ?></strong> <span><?php echo t('footer_rights'); ?></span></p>
     </div>
 
   </footer>

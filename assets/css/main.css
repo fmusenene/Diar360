@@ -147,7 +147,7 @@ h6 {
 .header {
   --background-color: #ffffff;
   color: var(--default-color);
-  transition: all 0.5s;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
   z-index: 997;
   background-color: var(--background-color);
 }
@@ -157,7 +157,8 @@ h6 {
   height: 40px;
   padding: 0;
   font-size: 14px;
-  transition: all 0.5s;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform-origin: top;
 }
 
 .header .topbar .contact-info i {
@@ -227,9 +228,8 @@ h6 {
 }
 
 .scrolled .header .topbar {
-  height: 0;
-  visibility: hidden;
-  overflow: hidden;
+  transform: translateY(-100%);
+  opacity: 0;
 }
 
 /*--------------------------------------------------------------
@@ -1522,17 +1522,17 @@ section,
 }
 
 .projects .project-status.completed {
-  background: #22c55e;
+  background: #28a745;
   color: #ffffff;
 }
 
 .projects .project-status.in-progress {
-  background: var(--accent-color);
+  background: #007bff;
   color: #ffffff;
 }
 
 .projects .project-status.planning {
-  background: #f59e0b;
+  background: #ffc107;
   color: #ffffff;
 }
 

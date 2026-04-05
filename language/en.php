@@ -639,6 +639,25 @@ return [
     // Additional category translations
     'project_category_government' => 'Government',
     'project_category_industrial' => 'Industrial',
+    
+    // King Fahd Stadium Project Translations
+    'project_king-fahd-stadium_title' => 'King Fahd International Sports City Stadium',
+    'project_king-fahd-stadium_description' => 'Comprehensive construction project for King Fahd International Sports City Stadium, including civil works, MEP systems, and high-quality finishing works. A landmark sports facility showcasing DIAR 360\'s expertise in large-scale infrastructure development.',
+    'project_king-fahd-stadium_scope' => 'Civil, MEP & Finishing Works',
+    'project_king-fahd-stadium_spec_scope_of_work' => 'Civil, MEP & Finishing Works',
+    'project_king-fahd-stadium_spec_project_type' => 'Sports Stadium Infrastructure',
+    'project_king-fahd-stadium_spec_contract_value' => '25 Million SAR',
+    'project_king-fahd-stadium_spec_location' => 'Riyadh',
+    'project_king-fahd-stadium_spec_status' => 'Completed',
+    
+    // Project status translations
+    'projects_completed' => 'Completed',
+    'projects_in_progress' => 'In Progress',
+    'projects_planning' => 'Planning',
+    'projects_on_hold' => 'On Hold',
+    
+    // Additional translations for stadium project
+    'civil_mep_finishing' => 'Civil, MEP & Finishing',
 ];
 
 ?>

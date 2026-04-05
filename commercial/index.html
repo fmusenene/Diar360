@@ -1,3 +1,22 @@
+<?php
+/**
+ * Commercial Index Page
+ */
+
+// Load admin settings for dynamic contact information
+$admin_settings_file = __DIR__ . '/../config/admin-settings.php';
+$site_settings = [];
+$admin_password = 'diar360_admin_2024'; // Default fallback
+
+if (file_exists($admin_settings_file)) {
+    include $admin_settings_file;
+}
+
+// Use admin settings if available, otherwise fall back to defaults
+$admin_email = isset($site_settings['admin_email']) ? $site_settings['admin_email'] : 'info@diar360.com';
+$company_phone = isset($site_settings['company_phone']) ? $site_settings['company_phone'] : '+966 1 1 296 7735';
+$company_address = isset($site_settings['company_address']) ? $site_settings['company_address'] : 'Prince Mohammed Ibn Salman Ibn Abdulaziz Rd, Al Falah Dist, Riyadh - KSA';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -586,9 +605,9 @@
         <h1>Get In Touch</h1>
         <p>Partner with Diar 360 for your next construction project</p>
         <div class="contact-info">
-          <p><strong>Address:</strong> 6999 Hassan Ibn Hussein Ibn Ali, 2454 Al Munisiyah Dist. 13246 Riyadh, KSA</p>
-          <p><strong>Email:</strong> <a href="mailto:info@diar360.com">info@diar360.com</a></p>
-          <p><strong>Phone:</strong> <a href="tel:+966112967735">+966 11 296 7735</a></p>
+          <p><strong>Address:</strong> <?php echo htmlspecialchars($company_address); ?></p>
+          <p><strong>Email:</strong> <a href="mailto:<?php echo htmlspecialchars($admin_email); ?>"><?php echo htmlspecialchars($admin_email); ?></a></p>
+          <p><strong>Phone:</strong> <a href="tel:<?php echo str_replace(' ', '', $company_phone); ?>"><?php echo htmlspecialchars($company_phone); ?></a></p>
           <p><strong>Web:</strong> <a href="https://www.diar360.com" target="_blank">www.diar360.com</a></p>
           <p><strong>Follow:</strong> @diar360</p>
         </div>
@@ -777,9 +796,9 @@
         <h1>تواصل معنا</h1>
         <p>شراكة مع ديار 360 لمشروع البناء القادم</p>
         <div class="contact-info">
-          <p><strong>العنوان:</strong> 6999 حسن بن حسين بن علي، 2454 حي المنصورة 13246 الرياض، المملكة العربية السعودية</p>
-          <p><strong>البريد:</strong> <a href="mailto:info@diar360.com">info@diar360.com</a></p>
-          <p><strong>الهاتف:</strong> <a href="tel:+966112967735">+966 11 296 7735</a></p>
+          <p><strong>العنوان:</strong> <?php echo htmlspecialchars($company_address); ?></p>
+          <p><strong>البريد:</strong> <a href="mailto:<?php echo htmlspecialchars($admin_email); ?>"><?php echo htmlspecialchars($admin_email); ?></a></p>
+          <p><strong>الهاتف:</strong> <a href="tel:<?php echo str_replace(' ', '', $company_phone); ?>"><?php echo htmlspecialchars($company_phone); ?></a></p>
           <p><strong>الويب:</strong> <a href="https://www.diar360.com" target="_blank">www.diar360.com</a></p>
           <p><strong>تابعنا:</strong> @diar360</p>
         </div>

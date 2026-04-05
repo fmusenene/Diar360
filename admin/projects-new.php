@@ -589,6 +589,27 @@ function updateProjectsData($projects) {
             transform: translateX(5px) !important;
         }
         
+        /* Project Status Badge Colors */
+        .status-badge.completed {
+            background-color: hsl(120, 60%, 40%) !important;
+            color: white !important;
+        }
+        
+        .status-badge.in-progress {
+            background-color: hsl(38, 92%, 50%) !important;
+            color: white !important;
+        }
+        
+        .status-badge.planning {
+            background-color: hsl(45, 100%, 50%) !important;
+            color: white !important;
+        }
+        
+        .status-badge.on-hold {
+            background-color: hsl(0, 0%, 55%) !important;
+            color: white !important;
+        }
+        
         @import url('https://fonts.googleapis.com/css2?family=Domine:wght@400;500;600;700&family=Arimo:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=El+Messiri:wght@400;500;600;700&display=swap');
         
         :root {
@@ -616,10 +637,10 @@ function updateProjectsData($projects) {
             --sidebar-accent: 345 40% 30%; /* #265AA2 */
             --sidebar-accent-foreground: 34 100% 97%;
             --sidebar-border: 345 35% 32%;
-            --status-completed: 152 60% 40%;
-            --status-in-progress: 38 92% 50%;
-            --status-planning: 210 70% 50%;
-            --status-on-hold: 0 0% 55%;
+            --status-completed: 120 60% 40%; /* Green for completed */
+            --status-in-progress: 38 92% 50%; /* Blue for in progress */
+            --status-planning: 45 100% 50%; /* Orange for planning */
+            --status-on-hold: 0 0% 55%; /* Gray for on hold */
             --font-heading: 'Domine', serif;
             --font-body: 'Arimo', sans-serif;
             --font-arabic: 'El Messiri', sans-serif;
@@ -1203,25 +1224,25 @@ function updateProjectsData($projects) {
                 $on_hold = array_filter($projects, function($p) { return $p['status'] === 'on-hold'; });
                 ?>
                 
-                <div class="bg-card rounded-xl p-4 border border-border">
-                    <p class="text-sm text-muted-foreground">Total</p>
-                    <p class="text-2xl font-heading font-bold mt-1 text-primary"><?php echo $total_projects; ?></p>
+                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground group-hover:text-primary">Total</p>
+                    <p class="text-2xl font-heading font-bold mt-1 text-primary group-hover:scale-105 transition-transform"><?php echo $total_projects; ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border">
-                    <p class="text-sm text-muted-foreground">Completed</p>
-                    <p class="text-2xl font-heading font-bold mt-1 text-green-600"><?php echo count($completed); ?></p>
+                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground group-hover:text-green-600">Completed</p>
+                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(120, 60%, 40%); transition-transform: scale(1.05) group-hover:scale-105"><?php echo count($completed); ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border">
-                    <p class="text-sm text-muted-foreground">In Progress</p>
-                    <p class="text-2xl font-heading font-bold mt-1 text-yellow-600"><?php echo count($in_progress); ?></p>
+                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground group-hover:text-yellow-600">In Progress</p>
+                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(45, 100%, 50%); transition-transform: scale(1.05) group-hover:scale-105"><?php echo count($in_progress); ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border">
-                    <p class="text-sm text-muted-foreground">Planning</p>
-                    <p class="text-2xl font-heading font-bold mt-1 text-blue-600"><?php echo count($planning); ?></p>
+                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground group-hover:text-blue-600">Planning</p>
+                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(38, 92%, 50%)" class="group-hover:scale-105 transition-transform"><?php echo count($planning); ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border">
-                    <p class="text-sm text-muted-foreground">On Hold</p>
-                    <p class="text-2xl font-heading font-bold mt-1 text-gray-600"><?php echo count($on_hold); ?></p>
+                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground group-hover:text-gray-600">On Hold</p>
+                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(0, 0%, 55%)" class="group-hover:scale-105 transition-transform"><?php echo count($on_hold); ?></p>
                 </div>
             </div>
             

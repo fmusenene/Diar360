@@ -108,7 +108,7 @@ $projects = [
     ],
     'ramla-tower' => [
         'title' => 'Ramla Tower Project',
-        'category' => 'Towers',
+        'category' => 'Commercial',
         'status' => 'completed',
         'location' => 'Riyadh',
         'contract_value' => 'N/A',
@@ -121,7 +121,7 @@ $projects = [
             'Partner' => 'FIRST COMPANY',
             'Status' => 'Completed',
         ],
-        'visible' => '0',
+        'visible' => '1',
     ],
     '309-310-tower-kafd' => [
         'title' => '309,310 Tower Project (KAFD)',

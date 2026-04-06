@@ -8,6 +8,31 @@ session_start();
 require_once __DIR__ . '/../config/projects-data.php';
 require_once __DIR__ . '/../config/project-status.php';
 
+// Security: Session timeout and activity tracking
+$session_timeout = 20 * 60; // 20 minutes in seconds
+$current_time = time();
+
+// Initialize session variables if not exists
+if (!isset($_SESSION['session_start'])) {
+    $_SESSION['session_start'] = $current_time;
+    $_SESSION['last_activity'] = $current_time;
+}
+
+// Check for session timeout
+if (isset($_SESSION['last_activity']) && ($current_time - $_SESSION['last_activity']) > $session_timeout) {
+    session_destroy();
+    header('Location: projects-new.php?timeout=1');
+    exit;
+}
+
+// Update last activity time
+$_SESSION['last_activity'] = $current_time;
+
+// Generate unique session token for security
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Load admin settings
 $admin_password = 'diar360_admin_2024'; // Default fallback
 $site_settings = [];
@@ -17,14 +42,44 @@ if (file_exists($settings_file)) {
     include $settings_file;
 }
 
-// Authentication
+// Authentication with enhanced security
 $is_authenticated = false;
 
 if (isset($_POST['login']) && $_POST['password'] === $admin_password) {
+    // Validate CSRF token (constant-time compare + graceful recovery)
+    $posted_token = $_POST['csrf_token'] ?? '';
+    $session_token = $_SESSION['csrf_token'] ?? '';
+    if ($posted_token === '' || $session_token === '' || !hash_equals($session_token, $posted_token)) {
+        // Regenerate token and return to login with an error instead of hard-stopping.
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        header('Location: projects-new.php?error=csrf');
+        exit;
+    }
+    
+    // Regenerate session ID for security
+    session_regenerate_id(true);
+    
     $_SESSION['admin_authenticated'] = true;
-    $_SESSION['admin_password'] = $admin_password; // Store in session
+    $_SESSION['admin_password'] = $admin_password;
+    $_SESSION['login_time'] = $current_time;
+    $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
+    $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); // Regenerate token
     $is_authenticated = true;
 } elseif (isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true) {
+    // Verify session integrity
+    if (isset($_SESSION['ip_address']) && $_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
+        session_destroy();
+        header('Location: projects-new.php?security=1');
+        exit;
+    }
+    
+    if (isset($_SESSION['user_agent']) && $_SESSION['user_agent'] !== $_SERVER['HTTP_USER_AGENT']) {
+        session_destroy();
+        header('Location: projects-new.php?security=1');
+        exit;
+    }
+    
     // Use password from session if available
     if (isset($_SESSION['admin_password'])) {
         $admin_password = $_SESSION['admin_password'];
@@ -36,6 +91,26 @@ if (isset($_POST['login']) && $_POST['password'] === $admin_password) {
 if (isset($_GET['logout'])) {
     session_destroy();
     header('Location: projects-new.php');
+    exit;
+}
+
+// Handle AJAX requests for security
+if (isset($_GET['heartbeat']) || isset($_GET['check_session'])) {
+    header('Content-Type: application/json');
+    
+    if (isset($_GET['heartbeat'])) {
+        // Update last activity time
+        $_SESSION['last_activity'] = time();
+        echo json_encode(['success' => true]);
+    } elseif (isset($_GET['check_session'])) {
+        // Check if session is still valid
+        $is_valid = isset($_SESSION['admin_authenticated']) && 
+                   $_SESSION['admin_authenticated'] === true &&
+                   isset($_SESSION['ip_address']) && 
+                   $_SESSION['ip_address'] === $_SERVER['REMOTE_ADDR'];
+        
+        echo json_encode(['valid' => $is_valid]);
+    }
     exit;
 }
 
@@ -654,6 +729,7 @@ function updateProjectsData($projects) {
             background: hsl(var(--background));
             color: hsl(var(--foreground));
             font-family: var(--font-body);
+            overflow-x: hidden;
         }
         
         h1, h2, h3, h4, h5, h6 {
@@ -726,6 +802,82 @@ function updateProjectsData($projects) {
         .status-on-hold {
             background: hsl(var(--status-on-hold));
             color: white;
+        }
+
+        /* Dashboard statistic card styles */
+        .stats-card {
+            border: 1px solid hsl(var(--border));
+            border-left-width: 4px;
+            border-radius: 0.85rem;
+            transition: transform 0.2s ease, box-shadow 0.25s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 22px rgba(15, 42, 73, 0.12);
+        }
+
+        .stats-card-total {
+            border-left-color: #13529D;
+            background: linear-gradient(135deg, rgba(19, 82, 157, 0.08), rgba(19, 82, 157, 0.02));
+        }
+
+        .stats-card-completed {
+            border-left-color: #1f8f45;
+            background: linear-gradient(135deg, rgba(31, 143, 69, 0.1), rgba(31, 143, 69, 0.02));
+        }
+
+        .stats-card-progress {
+            border-left-color: #f59e0b;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0.03));
+        }
+
+        .stats-card-planning {
+            border-left-color: #3b82f6;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.03));
+        }
+
+        .stats-card-hold {
+            border-left-color: #6b7280;
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.16), rgba(107, 114, 128, 0.03));
+        }
+
+        .stats-value {
+            transition: transform 0.2s ease;
+        }
+
+        .stats-card:hover .stats-value {
+            transform: scale(1.04);
+        }
+
+        /* Pagination */
+        .pagination-btn {
+            min-width: 2.2rem;
+            height: 2.2rem;
+            padding: 0 0.55rem;
+            border-radius: 0.6rem;
+            border: 1px solid hsl(var(--border));
+            background: hsl(var(--card));
+            color: hsl(var(--foreground));
+            font-size: 0.82rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: rgba(19, 82, 157, 0.08);
+            border-color: rgba(19, 82, 157, 0.35);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: #13529D;
+            border-color: #13529D;
+            color: #fff;
         }
         
         /* Custom status dropdown styling */
@@ -827,18 +979,170 @@ function updateProjectsData($projects) {
             margin-left: 72px;
         }
         
-        @media (max-width: 768px) {
-            .sidebar-mobile {
+        /* Responsive layout for admin panel */
+        #sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        @media (max-width: 1024px) {
+            #sidebar {
+                width: 260px !important;
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
+                transition: transform 0.28s ease;
             }
-            
-            .sidebar-mobile.active {
+
+            #sidebar.mobile-open {
                 transform: translateX(0);
             }
-            
-            .main-content-mobile {
-                margin-left: 0;
+
+            #main-content {
+                margin-left: 0 !important;
+            }
+
+            #sidebar-overlay.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .sidebar-text {
+                display: block !important;
+            }
+
+            .mobile-header-btn {
+                display: inline-flex !important;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .mobile-header-btn {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header.h-16 {
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+
+            main.flex-1 {
+                padding: 1rem !important;
+            }
+
+            .tab-button {
+                font-size: 0.8rem;
+                padding-left: 0.25rem !important;
+                padding-right: 0.25rem !important;
+            }
+
+            #projects-container .project-card {
+                padding: 1rem !important;
+            }
+
+            .project-card {
+                overflow: hidden;
+            }
+
+            .project-card h3 {
+                font-size: 1rem !important;
+                line-height: 1.3 !important;
+            }
+
+            .project-card .status-badge,
+            .project-card .visibility-badge {
+                font-size: 0.68rem !important;
+                padding: 0.2rem 0.45rem !important;
+                white-space: nowrap;
+            }
+
+            /* Keep description visible but compact on small screens */
+            .project-card p.line-clamp-2 {
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                margin-bottom: 0.5rem !important;
+                font-size: 0.82rem !important;
+                line-height: 1.35 !important;
+            }
+
+            .project-card .project-meta {
+                gap: 0.4rem 0.85rem !important;
+                font-size: 0.78rem !important;
+            }
+
+            .project-card .project-meta-scope {
+                display: none;
+            }
+
+            .project-card .project-status-actions,
+            .project-card .project-file-actions,
+            .project-card .project-main-actions {
+                width: 100%;
+                margin-top: 0.25rem !important;
+                flex-wrap: wrap;
+            }
+
+            .project-card .project-status-actions select {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .project-card .project-file-actions a,
+            .project-card .project-main-actions button {
+                flex: 1 1 auto;
+                justify-content: center;
+                min-height: 38px;
+            }
+
+            .project-card,
+            .project-card * {
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+
+            /* Fit more summary cards in first viewport */
+            .mobile-stats-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 0.5rem !important;
+            }
+
+            .mobile-stats-grid > div {
+                padding: 0.6rem !important;
+            }
+
+            .mobile-stats-grid p.text-2xl {
+                font-size: 1.05rem !important;
+                line-height: 1.1 !important;
+            }
+
+            .mobile-stats-grid p.text-sm {
+                font-size: 0.72rem !important;
+            }
+
+            #pagination-controls {
+                gap: 0.35rem !important;
+            }
+
+            #pagination-controls .pagination-btn {
+                min-width: 2rem;
+                height: 2rem;
+                font-size: 0.76rem;
+                padding: 0 0.42rem;
+            }
+
+            #project-modal .bg-card,
+            #delete-modal .bg-card,
+            #delete-pdf-modal .bg-card {
+                width: calc(100vw - 1rem) !important;
+                max-width: calc(100vw - 1rem) !important;
+                margin: 0.5rem;
             }
         }
     </style>
@@ -857,6 +1161,7 @@ function updateProjectsData($projects) {
             </div>
             
             <form method="post" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <div>
                     <label for="password" class="block text-sm font-medium text-foreground mb-2">Admin Password</label>
                     <div class="relative">
@@ -914,29 +1219,23 @@ function updateProjectsData($projects) {
         </div>
     </aside>
     
+    <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
     <!-- Main Content -->
     <div id="main-content" class="main-content-shifted min-h-screen flex flex-col transition-all duration-300">
         <!-- Top Navbar -->
         <header class="h-16 border-b border-border bg-card flex items-center justify-between px-6 shrink-0">
-            <div></div>
+            <button type="button" onclick="toggleSidebar()" class="mobile-header-btn hidden h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground">
+                <i class="fas fa-bars"></i>
+            </button>
             <div class="flex items-center gap-3">
-                <!-- Notifications -->
-                <button class="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors relative">
-                    <i class="fas fa-bell h-5 w-5"></i>
-                    <span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive"></span>
-                </button>
-                
                 <!-- Admin Dropdown -->
                 <div class="relative">
                     <button onclick="toggleDropdown()" class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors">
                         <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
                             <i class="fas fa-user text-primary-foreground"></i>
                         </div>
-                        <div class="text-left hidden sm:block">
-                            <p class="text-sm font-medium text-foreground leading-tight">Admin</p>
-                            <p class="text-xs text-muted-foreground leading-tight">Administrator</p>
-                        </div>
-                        <i class="fas fa-chevron-down h-4 w-4 text-muted-foreground hidden sm:block"></i>
+                        <i class="fas fa-chevron-down h-4 w-4 text-muted-foreground"></i>
                     </button>
                     <div id="admin-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50">
                         <a href="projects-new.php?page=settings" class="block px-4 py-2 text-sm text-foreground hover:bg-muted">Settings</a>
@@ -994,6 +1293,9 @@ function updateProjectsData($projects) {
                                     break;
                                 case 'invalid_backup': 
                                     echo 'Invalid backup file'; 
+                                    break;
+                                case 'csrf':
+                                    echo 'Security token expired or invalid. Please try logging in again.';
                                     break;
                                 default: 
                                     echo 'An error occurred'; 
@@ -1215,7 +1517,7 @@ function updateProjectsData($projects) {
             </div>
             
             <!-- Stats -->
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
+            <div class="mobile-stats-grid grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
                 <?php
                 $total_projects = count($projects);
                 $completed = array_filter($projects, function($p) { return $p['status'] === 'completed'; });
@@ -1224,25 +1526,25 @@ function updateProjectsData($projects) {
                 $on_hold = array_filter($projects, function($p) { return $p['status'] === 'on-hold'; });
                 ?>
                 
-                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
-                    <p class="text-sm text-muted-foreground group-hover:text-primary">Total</p>
-                    <p class="text-2xl font-heading font-bold mt-1 text-primary group-hover:scale-105 transition-transform"><?php echo $total_projects; ?></p>
+                <div class="stats-card stats-card-total bg-card rounded-xl p-4 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground">Total</p>
+                    <p class="stats-value text-2xl font-heading font-bold mt-1 text-primary"><?php echo $total_projects; ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
-                    <p class="text-sm text-muted-foreground group-hover:text-green-600">Completed</p>
-                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(120, 60%, 40%); transition-transform: scale(1.05) group-hover:scale-105"><?php echo count($completed); ?></p>
+                <div class="stats-card stats-card-completed bg-card rounded-xl p-4 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground">Completed</p>
+                    <p class="stats-value text-2xl font-heading font-bold mt-1 text-green-700"><?php echo count($completed); ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
-                    <p class="text-sm text-muted-foreground group-hover:text-yellow-600">In Progress</p>
-                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(45, 100%, 50%); transition-transform: scale(1.05) group-hover:scale-105"><?php echo count($in_progress); ?></p>
+                <div class="stats-card stats-card-progress bg-card rounded-xl p-4 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground">In Progress</p>
+                    <p class="stats-value text-2xl font-heading font-bold mt-1 text-amber-600"><?php echo count($in_progress); ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
-                    <p class="text-sm text-muted-foreground group-hover:text-blue-600">Planning</p>
-                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(38, 92%, 50%)" class="group-hover:scale-105 transition-transform"><?php echo count($planning); ?></p>
+                <div class="stats-card stats-card-planning bg-card rounded-xl p-4 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground">Planning</p>
+                    <p class="stats-value text-2xl font-heading font-bold mt-1 text-blue-600"><?php echo count($planning); ?></p>
                 </div>
-                <div class="bg-card rounded-xl p-4 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer group">
-                    <p class="text-sm text-muted-foreground group-hover:text-gray-600">On Hold</p>
-                    <p class="text-2xl font-heading font-bold mt-1" style="color: hsl(0, 0%, 55%)" class="group-hover:scale-105 transition-transform"><?php echo count($on_hold); ?></p>
+                <div class="stats-card stats-card-hold bg-card rounded-xl p-4 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    <p class="text-sm text-muted-foreground">On Hold</p>
+                    <p class="stats-value text-2xl font-heading font-bold mt-1 text-gray-600"><?php echo count($on_hold); ?></p>
                 </div>
             </div>
             
@@ -1284,7 +1586,7 @@ function updateProjectsData($projects) {
                                 </span>
                             </div>
                             <p class="text-sm text-muted-foreground mb-3 line-clamp-2"><?php echo htmlspecialchars($project['description']); ?></p>
-                            <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                            <div class="project-meta flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
                                 <span class="flex items-center gap-1.5">
                                     <i class="fas fa-map-marker-alt h-3.5 w-3.5"></i>
                                     <?php echo htmlspecialchars($project['location']); ?>
@@ -1293,13 +1595,13 @@ function updateProjectsData($projects) {
                                     <i class="fas fa-dollar-sign h-3.5 w-3.5"></i>
                                     <?php echo htmlspecialchars($project['contract_value']); ?>
                                 </span>
-                                <span class="flex items-center gap-1.5">
+                                <span class="project-meta-scope flex items-center gap-1.5">
                                     <i class="fas fa-briefcase h-3.5 w-3.5"></i>
                                     <?php echo htmlspecialchars($project['scope']); ?>
                                 </span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0">
+                        <div class="project-status-actions flex items-center gap-2 shrink-0">
                             <!-- Status Update -->
                             <select onchange="updateStatus('<?php echo $slug; ?>', this.value)" class="w-36 h-9 text-xs px-2 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring status-dropdown">
                                 <option value="completed" <?php echo $project['status'] === 'completed' ? 'selected' : ''; ?>>✓ Completed</option>
@@ -1308,7 +1610,7 @@ function updateProjectsData($projects) {
                                 <option value="on-hold" <?php echo $project['status'] === 'on-hold' ? 'selected' : ''; ?>>⏸ On Hold</option>
                             </select>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0 mt-2">
+                        <div class="project-file-actions flex items-center gap-2 shrink-0 mt-2">
                             <?php if (!empty($project['contract_pdf'])): ?>
                             <?php 
                             $pdf_path = __DIR__ . '/../assets/contracts/' . $project['contract_pdf'];
@@ -1325,7 +1627,7 @@ function updateProjectsData($projects) {
                             </a>
                             <?php endif; ?>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0 mt-2">
+                        <div class="project-main-actions flex items-center gap-2 shrink-0 mt-2">
                             <button onclick="openEditModal('<?php echo $slug; ?>')" class="px-3 py-1.5 bg-background border border-input rounded-lg hover:bg-muted transition-colors gap-1.5 inline-flex items-center text-sm">
                                 <i class="fas fa-edit h-3.5 w-3.5"></i>
                                 Edit
@@ -1338,6 +1640,16 @@ function updateProjectsData($projects) {
                     </div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+
+            <div id="client-no-results" class="hidden text-center py-10 text-muted-foreground">
+                <i class="fas fa-search h-10 w-10 mx-auto mb-3 opacity-40"></i>
+                <p class="text-base">No projects match your current filter</p>
+            </div>
+
+            <div id="pagination-wrapper" class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p id="pagination-summary" class="text-sm text-muted-foreground"></p>
+                <div id="pagination-controls" class="flex items-center gap-2"></div>
             </div>
             
             <?php if (empty($projects)): ?>
@@ -1581,12 +1893,64 @@ function updateProjectsData($projects) {
         // Global projects data
         const projects = <?php echo json_encode($projects); ?>;
         
+        function isMobileLayout() {
+            return window.matchMedia('(max-width: 1024px)').matches;
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function applyResponsiveSidebarState() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            const sidebarTexts = document.querySelectorAll('.sidebar-text');
+            const toggleIcon = document.getElementById('sidebar-toggle-icon');
+
+            if (!sidebar || !mainContent) return;
+
+            if (isMobileLayout()) {
+                sidebar.classList.remove('sidebar-collapsed', 'sidebar-expanded');
+                mainContent.classList.remove('main-content-collapsed', 'main-content-shifted');
+                mainContent.classList.add('main-content-mobile');
+                if (toggleIcon) {
+                    toggleIcon.classList.remove('fa-chevron-right');
+                    toggleIcon.classList.add('fa-chevron-left');
+                }
+                sidebarTexts.forEach(text => text.style.display = 'block');
+                closeMobileSidebar();
+            } else {
+                sidebar.classList.remove('mobile-open');
+                mainContent.classList.remove('main-content-mobile');
+                if (!sidebar.classList.contains('sidebar-collapsed')) {
+                    sidebar.classList.add('sidebar-expanded');
+                    mainContent.classList.remove('main-content-collapsed');
+                    mainContent.classList.add('main-content-shifted');
+                    if (toggleIcon) {
+                        toggleIcon.classList.remove('fa-chevron-right');
+                        toggleIcon.classList.add('fa-chevron-left');
+                    }
+                    sidebarTexts.forEach(text => text.style.display = 'block');
+                }
+            }
+        }
+
         // Sidebar toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             const sidebarTexts = document.querySelectorAll('.sidebar-text');
             const toggleIcon = document.getElementById('sidebar-toggle-icon');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (isMobileLayout()) {
+                sidebar.classList.toggle('mobile-open');
+                if (overlay) overlay.classList.toggle('active');
+                return;
+            }
             
             if (sidebar.classList.contains('sidebar-expanded')) {
                 sidebar.classList.remove('sidebar-expanded');
@@ -1671,6 +2035,9 @@ function updateProjectsData($projects) {
         
         // Active navigation tab switching
         document.addEventListener('DOMContentLoaded', function() {
+            applyResponsiveSidebarState();
+            window.addEventListener('resize', applyResponsiveSidebarState);
+
             const navItems = document.querySelectorAll('.nav-item');
             const urlParams = new URLSearchParams(window.location.search);
             const page = urlParams.get('page');
@@ -1697,6 +2064,9 @@ function updateProjectsData($projects) {
             // Add click handlers for smooth transitions
             navItems.forEach(item => {
                 item.addEventListener('click', function(e) {
+                    if (isMobileLayout()) {
+                        closeMobileSidebar();
+                    }
                     // Remove active from all items
                     navItems.forEach(nav => nav.classList.remove('active'));
                     // Add active to clicked item
@@ -1842,26 +2212,121 @@ function updateProjectsData($projects) {
             document.getElementById('project-modal').classList.add('hidden');
         }
         
-        // Search and filter
-        document.getElementById('search').addEventListener('input', filterProjects);
-        document.getElementById('status-filter').addEventListener('change', filterProjects);
-        
-        function filterProjects() {
-            const searchTerm = document.getElementById('search').value.toLowerCase();
-            const statusFilter = document.getElementById('status-filter').value;
-            const projectCards = document.querySelectorAll('.project-card');
-            
-            projectCards.forEach(card => {
+        // Search, filter, and pagination
+        const projectsPerPage = 10;
+        let currentProjectsPage = 1;
+
+        function getFilteredProjectCards() {
+            const searchInput = document.getElementById('search');
+            const statusFilterSelect = document.getElementById('status-filter');
+            const projectCards = Array.from(document.querySelectorAll('.project-card'));
+
+            if (!searchInput || !statusFilterSelect || projectCards.length === 0) {
+                return [];
+            }
+
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const statusFilter = statusFilterSelect.value;
+
+            return projectCards.filter(card => {
                 const searchMatch = card.dataset.search.includes(searchTerm);
                 const statusMatch = statusFilter === 'all' || card.dataset.status === statusFilter;
-                
-                if (searchMatch && statusMatch) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
+                return searchMatch && statusMatch;
             });
         }
+
+        function renderPagination(totalPages) {
+            const controls = document.getElementById('pagination-controls');
+            if (!controls) return;
+            controls.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            const createButton = (label, page, disabled = false, active = false) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'pagination-btn' + (active ? ' active' : '');
+                btn.textContent = label;
+                btn.disabled = disabled;
+                if (!disabled) {
+                    btn.addEventListener('click', () => {
+                        currentProjectsPage = page;
+                        filterProjects();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                }
+                controls.appendChild(btn);
+            };
+
+            createButton('Prev', Math.max(1, currentProjectsPage - 1), currentProjectsPage === 1);
+
+            const startPage = Math.max(1, currentProjectsPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+
+            for (let page = startPage; page <= endPage; page++) {
+                createButton(String(page), page, false, page === currentProjectsPage);
+            }
+
+            createButton('Next', Math.min(totalPages, currentProjectsPage + 1), currentProjectsPage === totalPages);
+        }
+
+        function filterProjects(resetPage = false) {
+            const allCards = Array.from(document.querySelectorAll('.project-card'));
+            if (allCards.length === 0) return;
+
+            if (resetPage) {
+                currentProjectsPage = 1;
+            }
+
+            const filteredCards = getFilteredProjectCards();
+            const totalFiltered = filteredCards.length;
+            const totalPages = Math.max(1, Math.ceil(totalFiltered / projectsPerPage));
+
+            if (currentProjectsPage > totalPages) {
+                currentProjectsPage = totalPages;
+            }
+
+            const start = (currentProjectsPage - 1) * projectsPerPage;
+            const end = start + projectsPerPage;
+            const visibleCards = new Set(filteredCards.slice(start, end));
+
+            allCards.forEach(card => {
+                card.style.display = visibleCards.has(card) ? 'block' : 'none';
+            });
+
+            const noResults = document.getElementById('client-no-results');
+            if (noResults) {
+                noResults.classList.toggle('hidden', totalFiltered !== 0);
+            }
+
+            const paginationSummary = document.getElementById('pagination-summary');
+            const paginationWrapper = document.getElementById('pagination-wrapper');
+            const from = totalFiltered === 0 ? 0 : start + 1;
+            const to = Math.min(end, totalFiltered);
+
+            if (paginationSummary) {
+                paginationSummary.textContent = totalFiltered === 0
+                    ? 'Showing 0 projects'
+                    : `Showing ${from}-${to} of ${totalFiltered} projects`;
+            }
+
+            if (paginationWrapper) {
+                paginationWrapper.classList.toggle('hidden', totalFiltered === 0);
+            }
+
+            renderPagination(totalPages);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('search');
+            const statusFilterSelect = document.getElementById('status-filter');
+
+            if (searchInput && statusFilterSelect) {
+                searchInput.addEventListener('input', () => filterProjects(true));
+                statusFilterSelect.addEventListener('change', () => filterProjects(true));
+                filterProjects(true);
+            }
+        });
         
         // Close modals on escape key
         document.addEventListener('keydown', function(event) {
@@ -2054,6 +2519,78 @@ function updateProjectsData($projects) {
                     } else {
                         confirmPassword.setCustomValidity('');
                     }
+                });
+            }
+        });
+        
+        // Security: Activity tracking and auto-logout
+        let activityTimer;
+        const sessionTimeout = 20 * 60 * 1000; // 20 minutes in milliseconds
+        
+        function resetActivityTimer() {
+            clearTimeout(activityTimer);
+            activityTimer = setTimeout(function() {
+                // Redirect to login after timeout
+                window.location.href = 'projects-new.php?timeout=1';
+            }, sessionTimeout);
+        }
+        
+        function updateServerActivity() {
+            // Send heartbeat to server to update session activity
+            fetch('projects-new.php?heartbeat=1', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        }
+        
+        // Track user activity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Events that reset the timer
+            const activityEvents = [
+                'mousedown', 'mousemove', 'keypress', 'scroll', 
+                'touchstart', 'click', 'keydown'
+            ];
+            
+            activityEvents.forEach(event => {
+                document.addEventListener(event, function() {
+                    resetActivityTimer();
+                    updateServerActivity();
+                });
+            });
+            
+            // Initial timer setup
+            resetActivityTimer();
+            
+            // Check for timeout/security parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('timeout') === '1') {
+                alert('Your session has expired due to inactivity. Please login again.');
+            }
+            if (urlParams.get('security') === '1') {
+                alert('Security alert: Your session has been terminated for security reasons. Please login again.');
+            }
+        });
+        
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // When page becomes visible, check session validity
+                fetch('projects-new.php?check_session=1', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.valid) {
+                        window.location.href = 'projects-new.php?security=1';
+                    }
+                })
+                .catch(error => {
+                    console.error('Session check failed:', error);
                 });
             }
         });

@@ -69,7 +69,7 @@ $company_phone = isset($site_settings['company_phone']) ? $site_settings['compan
             </h1>
             
             <p class="text-xl md:text-2xl mb-8 opacity-90">
-                i love you suzan
+                We're currently performing some scheduled maintenance to improve your experience.
             </p>
             
             <!-- Details -->

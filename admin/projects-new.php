@@ -863,6 +863,11 @@ function updateTeamData($ceo_profile, $team_members) {
             color: #FFFFFF !important;
             transform: translateX(5px) !important;
         }
+
+        .sidebar-logout,
+        .sidebar-logout * {
+            color: hsl(var(--destructive)) !important;
+        }
         
         /* Project Status Badge Colors */
         .status-badge.completed {
@@ -911,7 +916,7 @@ function updateTeamData($ceo_profile, $team_members) {
             --sidebar-primary-foreground: 345 48% 25%;
             --sidebar-accent: 345 40% 30%; /* #265AA2 */
             --sidebar-accent-foreground: 34 100% 97%;
-            --sidebar-border: 345 35% 32%;
+            --sidebar-border: 216 62% 40%; /* #265AA2 */
             --status-completed: 120 60% 40%; /* Green for completed */
             --status-in-progress: 38 92% 50%; /* Blue for in progress */
             --status-planning: 45 100% 50%; /* Orange for planning */
@@ -1514,7 +1519,7 @@ function updateTeamData($ceo_profile, $team_members) {
         
         <!-- Logout -->
         <div class="border-t border-sidebar-border p-2">
-            <a href="?logout=true" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive transition-colors">
+            <a href="?logout=true" class="sidebar-logout flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-destructive/20 hover:text-destructive transition-colors">
                 <i class="fas fa-sign-out-alt h-5 w-5 shrink-0"></i>
                 <span class="sidebar-text text-sm font-medium whitespace-nowrap">Logout</span>
             </a>
@@ -1530,20 +1535,12 @@ function updateTeamData($ceo_profile, $team_members) {
             <button type="button" onclick="toggleSidebar()" class="mobile-header-btn hidden h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground">
                 <i class="fas fa-bars"></i>
             </button>
-            <div class="flex items-center gap-3">
-                <!-- Admin Dropdown -->
-                <div class="relative">
-                    <button onclick="toggleDropdown()" class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors">
-                        <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                            <i class="fas fa-user text-primary-foreground"></i>
-                        </div>
-                        <i class="fas fa-chevron-down h-4 w-4 text-muted-foreground"></i>
-                    </button>
-                    <div id="admin-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50">
-                        <a href="projects-new.php?page=settings" class="block px-4 py-2 text-sm text-foreground hover:bg-muted">Settings</a>
-                        <hr class="border-border">
-                        <a href="?logout=true" class="block px-4 py-2 text-sm text-destructive hover:bg-muted">Logout</a>
+            <div class="flex items-center gap-3 ml-auto">
+                <div class="flex items-center gap-2 rounded-lg px-2 py-1.5">
+                    <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                        <i class="fas fa-user text-primary-foreground"></i>
                     </div>
+                    <span class="text-sm font-medium text-foreground">Admin</span>
                 </div>
             </div>
         </header>
@@ -2578,20 +2575,6 @@ function updateTeamData($ceo_profile, $team_members) {
             }
         }
         
-        // Dropdown toggle
-        function toggleDropdown() {
-            const dropdown = document.getElementById('admin-dropdown');
-            dropdown.classList.toggle('hidden');
-        }
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const dropdown = document.getElementById('admin-dropdown');
-            if (!event.target.closest('.relative') && !dropdown.classList.contains('hidden')) {
-                dropdown.classList.add('hidden');
-            }
-        });
-        
         // Modal functions
         function openAddModal() {
             document.getElementById('modal-title').textContent = 'Add New Project';
@@ -2659,7 +2642,11 @@ function updateTeamData($ceo_profile, $team_members) {
                 // Check for specific pages
                 if (page === 'settings' && href.includes('page=settings')) {
                     item.classList.add('active');
-                } 
+                }
+                // Check for team page
+                else if (page === 'team' && href.includes('page=team')) {
+                    item.classList.add('active');
+                }
                 // Check for dashboard (no page parameter)
                 else if (!page && href === 'projects-new.php') {
                     item.classList.add('active');

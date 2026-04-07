@@ -8,7 +8,7 @@ require_once __DIR__ . '/project-status.php';
 
 $projects = [
     'makkah-duct-work' => [
-        'title' => 'Makkah Project - Duct Work',
+        'title' => 'Makkah Project - Duct Work editedd',
         'category' => 'MEP',
         'status' => 'completed',
         'location' => 'Makkah',
@@ -60,7 +60,7 @@ $projects = [
     'exit-9-project' => [
         'title' => 'Exit 9 Project',
         'category' => 'Infrastructure',
-        'status' => 'on-hold',
+        'status' => 'completed',
         'location' => 'Riyadh',
         'contract_value' => 'N/A',
         'scope' => 'Civil, Mechanical, and Electrical work',
@@ -125,7 +125,7 @@ $projects = [
     ],
     '309-310-tower-kafd' => [
         'title' => '309,310 Tower Project (KAFD)',
-        'category' => 'Towers',
+        'category' => 'Industrial',
         'status' => 'completed',
         'location' => 'Riyadh',
         'contract_value' => 'N/A',
@@ -140,10 +140,11 @@ $projects = [
             'Partner' => 'SAUDI BUILD COMPANY',
             'Status' => 'Completed',
         ],
+        'visible' => '1',
     ],
     'al-wassil-tower' => [
         'title' => 'Al-Wassil Tower Project',
-        'category' => 'Towers',
+        'category' => 'Industrial',
         'status' => 'completed',
         'location' => 'King Fahd Road, Riyadh',
         'contract_value' => 'N/A',
@@ -156,10 +157,11 @@ $projects = [
             'Partner' => 'TAROUK CONTRACTING COMPANY',
             'Status' => 'Completed',
         ],
+        'visible' => '1',
     ],
     'al-swailim-tower' => [
         'title' => 'Al-Swailim Tower Project',
-        'category' => 'Towers',
+        'category' => 'Commercial',
         'status' => 'completed',
         'location' => 'Olaya Road, Riyadh',
         'contract_value' => 'N/A',
@@ -172,6 +174,7 @@ $projects = [
             'Partner' => 'TAROUK CONTRACTING COMPANY',
             'Status' => 'Completed',
         ],
+        'visible' => '1',
     ],
     'saudi-press-agency' => [
         'title' => 'Saudi Press Agency HQ',
@@ -190,6 +193,7 @@ $projects = [
             'Consultant' => 'Al Zaid',
             'Status' => 'Handed Over',
         ],
+        'visible' => '1',
     ],
     'shaqra-roman-theater' => [
         'title' => 'Shaqra Roman Theater',
@@ -205,6 +209,7 @@ $projects = [
             'Location' => 'Shaqra',
             'Status' => 'ON GOING',
         ],
+        'visible' => '1',
     ],
     'al-rimal-showrooms' => [
         'title' => 'Al Rimal Commercial Showrooms',
@@ -220,6 +225,7 @@ $projects = [
             'Location' => 'Riyadh',
             'Status' => 'ON GOING',
         ],
+        'visible' => '0',
     ],
     'water-pump-station' => [
         'title' => 'Water Pump House Station Al-Fatiha',
@@ -341,7 +347,7 @@ $projects = [
             'Handing Over Date' => '10 January 2017',
             'Status' => 'Handed Over',
         ],
-        'visible' => '0',
+        'visible' => '1',
     ],
     'yammam-cement' => [
         'title' => 'Yammam Cement Factory Project',
@@ -358,6 +364,7 @@ $projects = [
             'Handing Over Date' => '10 January 2017',
             'Status' => 'Handed Over',
         ],
+        'visible' => '1',
     ],
     'salboukh-station' => [
         'title' => 'SSEM-NWC-Salboukh Station',
@@ -403,6 +410,7 @@ $projects = [
             'Location' => 'Riyadh Exit #2',
             'Status' => 'Completed',
         ],
+        'visible' => '0',
     ],
     'ballan-tower' => [
         'title' => 'Ballan Commercial Tower',
@@ -422,9 +430,9 @@ $projects = [
         'visible' => '0',
     ],
     'king-fahd-stadium' => [
-        'title' => 'King Fahd International Sports City Stadium',
+        'title' => 'King Fahd International Sports City Stadium new',
         'category' => 'Infrastructure',
-        'status' => 'in-progress',
+        'status' => 'completed',
         'location' => 'Riyadh',
         'contract_value' => '25 MM SAR',
         'scope' => 'Civil, MEP & Finishing Works',
@@ -436,6 +444,7 @@ $projects = [
             'Location' => 'Riyadh',
             'Status' => 'In Progress',
         ],
+        'visible' => '1',
     ],
 ];
 

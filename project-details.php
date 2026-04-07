@@ -371,22 +371,35 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
             <h3><?php echo t('project_details_technical_doc'); ?></h3>
             <p><?php echo t('project_details_technical_desc'); ?></p>
           </div>
+          <?php
+            $blueprint_image_web = ASSETS_PATH . '/img/projects/' . $project_slug . '-blueprint.webp';
+            $quality_image_web = ASSETS_PATH . '/img/projects/' . $project_slug . '-quality-control.webp';
+            $system_image_web = ASSETS_PATH . '/img/projects/' . $project_slug . '-system-installation.webp';
+
+            $blueprint_image_file = __DIR__ . '/assets/img/projects/' . $project_slug . '-blueprint.webp';
+            $quality_image_file = __DIR__ . '/assets/img/projects/' . $project_slug . '-quality-control.webp';
+            $system_image_file = __DIR__ . '/assets/img/projects/' . $project_slug . '-system-installation.webp';
+
+            $blueprint_image_src = file_exists($blueprint_image_file) ? $blueprint_image_web : ASSETS_PATH . '/img/construction/project-12.webp';
+            $quality_image_src = file_exists($quality_image_file) ? $quality_image_web : ASSETS_PATH . '/img/construction/project-3.webp';
+            $system_image_src = file_exists($system_image_file) ? $system_image_web : ASSETS_PATH . '/img/construction/project-7.webp';
+          ?>
           <div class="row g-3">
             <div class="col-md-4">
               <div class="tech-item">
-                <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-12.webp" alt="<?php echo t('blueprint_review'); ?>" class="img-fluid" loading="lazy">
+                <img src="<?php echo $blueprint_image_src; ?>" alt="<?php echo t('blueprint_review'); ?>" class="img-fluid" loading="lazy">
                 <div class="tech-caption"><?php echo t('blueprint_analysis'); ?></div>
               </div>
             </div>
             <div class="col-md-4">
               <div class="tech-item">
-                <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-3.webp" alt="<?php echo t('quality_control'); ?>" class="img-fluid" loading="lazy">
+                <img src="<?php echo $quality_image_src; ?>" alt="<?php echo t('quality_control'); ?>" class="img-fluid" loading="lazy">
                 <div class="tech-caption"><?php echo t('quality_inspection'); ?></div>
               </div>
             </div>
             <div class="col-md-4">
               <div class="tech-item">
-                <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-7.webp" alt="<?php echo t('final_installation'); ?>" class="img-fluid" loading="lazy">
+                <img src="<?php echo $system_image_src; ?>" alt="<?php echo t('final_installation'); ?>" class="img-fluid" loading="lazy">
                 <div class="tech-caption"><?php echo t('system_installation'); ?></div>
               </div>
             </div>

@@ -126,6 +126,7 @@ function getLocationTranslation($location) {
       <div class="container" data-aos="fade-up" data-aos-delay="100">
 
         <div class="projects-grid">
+          <?php if (false) { ?>
           <!-- Makkah Projects -->
           <?php
           // Check if makkah-chilled-water is visible
@@ -1451,28 +1452,36 @@ function getLocationTranslation($location) {
           </div><!-- End Project Item -->
           <?php } ?>
 
-          <!-- Dynamic Projects Section -->
+          <?php } ?>
+
+          <!-- Dynamic Projects Section with pagination -->
           <?php
-          // Get all projects that are not already hardcoded above
-          $hardcoded_projects = [
-              'makkah-chilled-water', 'makkah-duct-work', 'makkah-electrical', 'rimal-project',
-              'exit-9-project', 'lamar-towers', 'elegance-tower', 'ramla-tower',
-              '309-310-tower-kafd', 'al-wassil-tower', 'al-swailim-tower', 'saudi-press-agency',
-              'shaqra-roman-theater', 'al-rimal-showrooms', 'water-pump-station', 'mr-atif-project',
-              'mr-saleh-project', 'princess-jawaher', 'nwc-mep', 'nwc-civil-mep',
-              'riyadh-development', 'riyadh-metro', 'yammam-cement', 'salboukh-station',
-              'california-compound', 'al-rashed-palace', 'ballan-tower', 'king-fahd-stadium'
-          ];
-          $dynamic_delay = 400;
+          // Collect all visible projects (so Admin edits always reflect here)
+          $visibleProjects = [];
           foreach ($projects as $slug => $project) {
-              if (!in_array($slug, $hardcoded_projects)) {
-                  // Only show visible projects
-                  $isVisible = isset($project['visible']) ? $project['visible'] : 0;
-                  // Convert to integer for comparison (handles both '1' and 1)
-                  $isVisible = (int)$isVisible;
-                  if ($isVisible !== 1) {
-                      continue; // Skip hidden projects
-                  }
+              $isVisible = isset($project['visible']) ? (int)$project['visible'] : 1;
+              if ($isVisible === 1) {
+                  $visibleProjects[$slug] = $project;
+              }
+          }
+          // Show newest admin-added/updated projects first
+          $visibleProjects = array_reverse($visibleProjects, true);
+
+          $total = count($visibleProjects);
+          $perPage = 10; // projects per page
+          $pageParam = isset($_GET['p']) ? (int)$_GET['p'] : 1;
+          $currentPage = max(1, $pageParam);
+          $totalPages = max(1, (int)ceil($total / $perPage));
+          if ($currentPage > $totalPages) {
+              $currentPage = $totalPages;
+          }
+
+          $offset = ($currentPage - 1) * $perPage;
+          $pagedSlugs = array_slice(array_keys($visibleProjects), $offset, $perPage, true);
+
+          $dynamic_delay = 50;
+          foreach ($pagedSlugs as $slug) {
+              $project = $visibleProjects[$slug];
           ?>
           <div class="project-item" data-aos="zoom-in" data-aos-delay="<?php echo $dynamic_delay; ?>">
             <div class="project-content">
@@ -1480,10 +1489,10 @@ function getLocationTranslation($location) {
                 <span class="project-category"><?php echo getCategoryTranslation($project['category']); ?></span>
                 <span class="project-status <?php echo getStatusClass($project['status']); ?>"><?php echo getStatusLabel($project['status']); ?></span>
               </div>
-              <h3 class="project-title"><?php echo getProjectField($slug, 'title') ?: $project['title']; ?></h3>
+              <h3 class="project-title"><?php echo htmlspecialchars($project['title']); ?></h3>
               <div class="project-details">
                 <div class="project-info">
-                  <p><?php echo getProjectField($slug, 'description') ?: $project['description']; ?></p>
+                  <p><?php echo htmlspecialchars($project['description']); ?></p>
                   <div class="project-specs">
                     <span class="spec-item">
                       <i class="bi bi-building"></i>
@@ -1514,11 +1523,47 @@ function getLocationTranslation($location) {
           </div><!-- End Project Item -->
           <?php
               $dynamic_delay += 25;
-              }
           }
           ?>
 
         </div>
+
+        <?php if ($total > $perPage): ?>
+          <?php
+          // Simple pagination controls
+          $baseUrl = strtok($_SERVER['REQUEST_URI'], '?');
+          $query = $_GET;
+          ?>
+          <div class="mt-4 d-flex justify-content-center">
+            <nav class="projects-pagination" aria-label="Projects pagination">
+              <ul class="pagination">
+                <?php
+                $query['p'] = max(1, $currentPage - 1);
+                $prevUrl = htmlspecialchars($baseUrl . '?' . http_build_query($query));
+                ?>
+                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                  <a class="page-link" href="<?php echo $currentPage <= 1 ? '#' : $prevUrl; ?>">&laquo;</a>
+                </li>
+                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                  <?php
+                  $query['p'] = $i;
+                  $pageUrl = htmlspecialchars($baseUrl . '?' . http_build_query($query));
+                  ?>
+                  <li class="page-item <?php echo $i === $currentPage ? 'active' : ''; ?>">
+                    <a class="page-link" href="<?php echo $pageUrl; ?>"><?php echo $i; ?></a>
+                  </li>
+                <?php endfor; ?>
+                <?php
+                $query['p'] = min($totalPages, $currentPage + 1);
+                $nextUrl = htmlspecialchars($baseUrl . '?' . http_build_query($query));
+                ?>
+                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                  <a class="page-link" href="<?php echo $currentPage >= $totalPages ? '#' : $nextUrl; ?>">&raquo;</a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        <?php endif; ?>
 
       </div>
 

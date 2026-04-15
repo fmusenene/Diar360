@@ -11,6 +11,9 @@ require_once __DIR__ . '/functions/language.php';
 
 // Load team data (editable from admin panel)
 require_once __DIR__ . '/config/team-data.php';
+
+// Get current language
+$currentLang = getCurrentLanguage();
 ?>
 
   <main class="main">
@@ -47,9 +50,12 @@ require_once __DIR__ . '/config/team-data.php';
                       <div class="quick-contact">
                         <?php
                         $ceo_socials = $ceo_profile['socials'] ?? [];
-                        if (!empty($ceo_socials['linkedin'])): ?><a href="<?php echo htmlspecialchars($ceo_socials['linkedin']); ?>"><i class="bi bi-linkedin"></i></a><?php endif; ?>
-                        <?php if (!empty($ceo_socials['twitter'])): ?><a href="<?php echo htmlspecialchars($ceo_socials['twitter']); ?>"><i class="bi bi-twitter-x"></i></a><?php endif; ?>
-                        <?php if (!empty($ceo_socials['email'])): ?><a href="<?php echo htmlspecialchars($ceo_socials['email']); ?>"><i class="bi bi-envelope"></i></a><?php endif; ?>
+                        ?>
+                        <?php if (!empty($ceo_socials['linkedin'])): ?>
+                          <a href="<?php echo htmlspecialchars($ceo_socials['linkedin']); ?>" target="_blank" rel="noopener noreferrer" title="<?php echo t('linkedin'); ?>"><i class="bi bi-linkedin"></i></a>
+                        <?php endif; ?>
+                        <?php if (!empty($ceo_socials['twitter'])): ?><a href="<?php echo htmlspecialchars($ceo_socials['twitter']); ?>" title="<?php echo t('twitter'); ?>"><i class="bi bi-twitter-x"></i></a><?php endif; ?>
+                        <?php if (!empty($ceo_socials['email'])): ?><a href="mailto:<?php echo htmlspecialchars($ceo_socials['email']); ?>" title="<?php echo t('email'); ?>"><i class="bi bi-envelope"></i></a><?php endif; ?>
                       </div>
                     </div>
                   </div>
@@ -58,9 +64,11 @@ require_once __DIR__ . '/config/team-data.php';
             </div>
             <div class="col-lg-8">
               <div class="ceo-block-content">
-                <h2 class="ceo-heading"><?php echo t('as_stated_by'); ?> <?php echo htmlspecialchars($ceo_profile['source_heading'] ?? ''); ?></h2>
+                <h2 class="ceo-heading"><?php echo t('as_stated_by'); ?> <?php echo htmlspecialchars($currentLang === 'ar' && !empty($ceo_profile['source_heading_ar']) ? $ceo_profile['source_heading_ar'] : ($ceo_profile['source_heading'] ?? '')); ?></h2>
                 <div class="ceo-message">
-                  <?php foreach (($ceo_profile['bio_paragraphs'] ?? []) as $para): ?>
+                  <?php 
+                  $bio_paragraphs = ($currentLang === 'ar' && !empty($ceo_profile['bio_paragraphs_ar'])) ? $ceo_profile['bio_paragraphs_ar'] : ($ceo_profile['bio_paragraphs'] ?? []);
+                  foreach ($bio_paragraphs as $para): ?>
                     <p><?php echo htmlspecialchars($para); ?></p>
                   <?php endforeach; ?>
                 </div>
@@ -92,20 +100,24 @@ require_once __DIR__ . '/config/team-data.php';
                     <?php endif; ?>
                   </div>
                   <div class="team-info">
-                    <h4><?php echo htmlspecialchars($m['name'] ?? ''); ?></h4>
-                    <span class="position"><?php echo htmlspecialchars($m['role'] ?? ''); ?></span>
+                    <h4><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['name_ar']) ? $m['name_ar'] : ($m['name'] ?? '')); ?></h4>
+                    <span class="position"><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['role_ar']) ? $m['role_ar'] : ($m['role'] ?? '')); ?></span>
                     <div class="contact-info">
                       <?php if (!empty($m['email'])): ?>
                         <a href="mailto:<?php echo htmlspecialchars($m['email']); ?>"><i class="bi bi-envelope"></i> <?php echo htmlspecialchars($m['email']); ?></a>
                       <?php endif; ?>
                       <?php if (!empty($m['phone'])): ?>
-                        <a href="tel:<?php echo htmlspecialchars(preg_replace('/[^0-9+]/', '', $m['phone'])); ?>"><i class="bi bi-telephone"></i> <?php echo convertNumbers($m['phone']); ?></a>
+                        <a href="tel:<?php echo htmlspecialchars(preg_replace('/[^0-9+]/', '', $m['phone'])); ?>"><i class="bi bi-telephone"></i> <?php echo formatPhoneNumber($m['phone']); ?></a>
                       <?php endif; ?>
                     </div>
                   </div>
                 </div>
                 <div class="team-details">
-                  <p><?php echo htmlspecialchars($m['description'] ?? ''); ?></p>
+                  <?php 
+                  $description = ($currentLang === 'ar' && !empty($m['description_ar'])) ? $m['description_ar'] : ($m['description'] ?? '');
+                  if (!empty($description)): ?>
+                    <p><?php echo htmlspecialchars($description); ?></p>
+                  <?php endif; ?>
                   <?php if (!empty($m['credentials']) && is_array($m['credentials'])): ?>
                     <div class="credentials">
                       <?php foreach ($m['credentials'] as $cred): ?>
@@ -118,10 +130,19 @@ require_once __DIR__ . '/config/team-data.php';
                   <?php endif; ?>
                   <?php if (!empty($m['socials']) && is_array($m['socials'])): ?>
                     <div class="social-links">
-                      <?php if (!empty($m['socials']['linkedin'])): ?><a href="<?php echo htmlspecialchars($m['socials']['linkedin']); ?>"><i class="bi bi-linkedin"></i></a><?php endif; ?>
-                      <?php if (!empty($m['socials']['twitter'])): ?><a href="<?php echo htmlspecialchars($m['socials']['twitter']); ?>"><i class="bi bi-twitter-x"></i></a><?php endif; ?>
-                      <?php if (!empty($m['socials']['facebook'])): ?><a href="<?php echo htmlspecialchars($m['socials']['facebook']); ?>"><i class="bi bi-facebook"></i></a><?php endif; ?>
-                      <?php if (!empty($m['socials']['instagram'])): ?><a href="<?php echo htmlspecialchars($m['socials']['instagram']); ?>"><i class="bi bi-instagram"></i></a><?php endif; ?>
+                      <?php if (!empty($m['socials']['linkedin'])): ?>
+  <?php 
+  $linkedin_url = $m['socials']['linkedin'];
+  // Only add protocol if missing, don't force LinkedIn structure
+  if (!preg_match('/^https?:\/\//', $linkedin_url)) {
+    $linkedin_url = 'https://' . $linkedin_url;
+  }
+  ?>
+  <a href="<?php echo htmlspecialchars($linkedin_url); ?>" target="_blank" rel="noopener noreferrer" title="<?php echo t('linkedin'); ?>"><i class="bi bi-linkedin"></i></a>
+<?php endif; ?>
+                      <?php if (!empty($m['socials']['twitter'])): ?><a href="<?php echo htmlspecialchars($m['socials']['twitter']); ?>" title="<?php echo t('twitter'); ?>"><i class="bi bi-twitter-x"></i></a><?php endif; ?>
+                      <?php if (!empty($m['socials']['facebook'])): ?><a href="<?php echo htmlspecialchars($m['socials']['facebook']); ?>" title="<?php echo t('facebook'); ?>"><i class="bi bi-facebook"></i></a><?php endif; ?>
+                      <?php if (!empty($m['socials']['instagram'])): ?><a href="<?php echo htmlspecialchars($m['socials']['instagram']); ?>" title="<?php echo t('instagram'); ?>"><i class="bi bi-instagram"></i></a><?php endif; ?>
                     </div>
                   <?php endif; ?>
                 </div>
@@ -137,21 +158,30 @@ require_once __DIR__ . '/config/team-data.php';
                   <img src="<?php echo ASSETS_PATH; ?>/img/<?php echo htmlspecialchars($m['photo'] ?? 'construction/team-3.webp'); ?>" class="img-fluid" alt="">
                   <div class="hover-overlay">
                     <div class="overlay-content">
-                      <h5><?php echo htmlspecialchars($m['name'] ?? ''); ?></h5>
-                      <span><?php echo htmlspecialchars($m['role'] ?? ''); ?></span>
+                      <h5><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['name_ar']) ? $m['name_ar'] : ($m['name'] ?? '')); ?></h5>
+                      <span><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['role_ar']) ? $m['role_ar'] : ($m['role'] ?? '')); ?></span>
                       <div class="quick-contact">
                         <?php
                         $qc = $m['quick_contact'] ?? [];
-                        if (!empty($qc['email'])): ?><a href="<?php echo htmlspecialchars($qc['email']); ?>"><i class="bi bi-envelope"></i></a><?php endif; ?>
-                        <?php if (!empty($qc['phone'])): ?><a href="<?php echo htmlspecialchars($qc['phone']); ?>"><i class="bi bi-telephone"></i></a><?php endif; ?>
-                        <?php if (!empty($qc['linkedin'])): ?><a href="<?php echo htmlspecialchars($qc['linkedin']); ?>"><i class="bi bi-linkedin"></i></a><?php endif; ?>
+                        if (!empty($qc['email'])): ?><a href="mailto:<?php echo htmlspecialchars($qc['email']); ?>" title="<?php echo t('email'); ?>"><i class="bi bi-envelope"></i></a><?php endif; ?>
+                        <?php if (!empty($qc['phone'])): ?><a href="tel:<?php echo htmlspecialchars(preg_replace('/[^0-9+]/', '', $qc['phone'])); ?>" title="<?php echo t('phone'); ?>"><i class="bi bi-telephone"></i> <?php echo formatPhoneNumber($qc['phone']); ?></a><?php endif; ?>
+                        <?php if (!empty($qc['linkedin'])): ?>
+                          <a href="<?php echo htmlspecialchars($qc['linkedin']); ?>" target="_blank" rel="noopener noreferrer" title="<?php echo t('linkedin'); ?>"><i class="bi bi-linkedin"></i></a>
+                        <?php endif; ?>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div class="member-summary">
-                  <h5><?php echo htmlspecialchars($m['name'] ?? ''); ?></h5>
-                  <span><?php echo htmlspecialchars($m['role'] ?? ''); ?></span>
+                  <h5><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['name_ar']) ? $m['name_ar'] : ($m['name'] ?? '')); ?></h5>
+                  <span><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['role_ar']) ? $m['role_ar'] : ($m['role'] ?? '')); ?></span>
+                  <?php if (!empty($m['description'])): ?>
+                    <?php 
+                    $description = ($currentLang === 'ar' && !empty($m['description_ar'])) ? $m['description_ar'] : ($m['description'] ?? '');
+                    if (!empty($description)): ?>
+                      <p class="member-description"><?php echo htmlspecialchars($description); ?></p>
+                    <?php endif; ?>
+                  <?php endif; ?>
                   <?php if (!empty($m['skills']) && is_array($m['skills'])): ?>
                     <div class="skills">
                       <?php foreach ($m['skills'] as $skill): ?>

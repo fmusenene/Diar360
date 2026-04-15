@@ -4,14 +4,71 @@
  * Matches the React/TypeScript design exactly but with PHP backend
  */
 
-session_start();
+// Security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header(
+    "Content-Security-Policy: " .
+    "default-src 'self'; " .
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com; " .
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " .
+    "font-src 'self' https://cdnjs.cloudflare.com data:; " .
+    "img-src 'self' data: blob:; " .
+    "connect-src 'self'; " .
+    "object-src 'none'; " .
+    "base-uri 'self'; " .
+    "frame-ancestors 'none'; " .
+    "form-action 'self'"
+);
+
+// HTTPS enforcement
+if (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') {
+    if ($_SERVER['HTTP_HOST'] !== 'localhost' && $_SERVER['HTTP_HOST'] !== '127.0.0.1') {
+        header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+        exit();
+    }
+}
+
+$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_secure', $is_https ? '1' : '0');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $is_https,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 require_once __DIR__ . '/../config/projects-data.php';
 require_once __DIR__ . '/../config/project-status.php';
 require_once __DIR__ . '/../config/team-data.php';
+require_once __DIR__ . '/../config/careers-data.php';
+require_once __DIR__ . '/../config/testimonials-data.php';
 
 // Security: Session timeout and activity tracking
-$session_timeout = 20 * 60; // 20 minutes in seconds
-$current_time = time();
+$session_timeout = 10 * 60; // 20 minutes in seconds
+$current_time = time(); 
+
+// Preserve the last admin page we were on (so after re-login we can return there).
+// Whitelist to avoid redirecting to unexpected pages.
+$requested_page = $_GET['page'] ?? 'projects';
+if (!is_string($requested_page)) {
+    $requested_page = 'projects';
+}
+if ($requested_page === 'dashboard') {
+    $requested_page = 'projects';
+}
+if (!in_array($requested_page, ['projects', 'team', 'settings', 'careers', 'certifications', 'testimonials'], true)) {
+    $requested_page = 'projects';
+}
 
 // Initialize session variables if not exists
 if (!isset($_SESSION['session_start'])) {
@@ -20,14 +77,34 @@ if (!isset($_SESSION['session_start'])) {
 }
 
 // Check for session timeout
-if (isset($_SESSION['last_activity']) && ($current_time - $_SESSION['last_activity']) > $session_timeout) {
+// IMPORTANT: allow the login POST to go through even if the session was already timed out.
+// Otherwise the session gets destroyed before authentication is processed, causing the timeout modal to loop.
+$is_login_attempt = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login']));
+if (!$is_login_attempt && isset($_SESSION['last_activity']) && ($current_time - $_SESSION['last_activity']) > $session_timeout) {
     session_destroy();
-    header('Location: projects-new.php?timeout=1');
+    header(
+        'Location: projects-new.php?timeout=1' .
+        ($requested_page !== 'projects' ? '&page=' . urlencode($requested_page) : '')
+    );
     exit;
 }
 
 // Update last activity time
 $_SESSION['last_activity'] = $current_time;
+
+// Handle activity update from JavaScript
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_activity'])) {
+    $_SESSION['last_activity'] = time();
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+// Handle force logout from JavaScript
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['force_logout'])) {
+    session_destroy();
+    echo json_encode(['success' => true]);
+    exit;
+}
 
 // Generate unique session token for security
 if (!isset($_SESSION['csrf_token'])) {
@@ -36,17 +113,178 @@ if (!isset($_SESSION['csrf_token'])) {
 
 // Load admin settings
 $admin_password = 'diar360_admin_2024'; // Default fallback
+$admin_password_hash = '';
 $site_settings = [];
 
 $settings_file = __DIR__ . '/../config/admin-settings.php';
 if (file_exists($settings_file)) {
     include $settings_file;
 }
+if (isset($site_settings['admin_password_hash']) && is_string($site_settings['admin_password_hash'])) {
+    $admin_password_hash = $site_settings['admin_password_hash'];
+}
+
+// Rate limiting and brute force protection
+function checkRateLimit($ip) {
+    $attempts_file = __DIR__ . '/../config/login_attempts.json';
+    $attempts = [];
+    
+    if (file_exists($attempts_file)) {
+        $attempts = json_decode(file_get_contents($attempts_file), true) ?: [];
+    }
+    
+    $current_time = time();
+    $ip_attempts = $attempts[$ip] ?? ['count' => 0, 'first_attempt' => $current_time];
+    
+    // Reset count after 30 minutes
+    if ($current_time - $ip_attempts['first_attempt'] > 1800) {
+        $ip_attempts = ['count' => 0, 'first_attempt' => $current_time];
+    }
+    
+    // Block after 5 failed attempts
+    if ($ip_attempts['count'] >= 5) {
+        return false;
+    }
+    
+    return true;
+}
+
+function recordFailedAttempt($ip) {
+    $attempts_file = __DIR__ . '/../config/login_attempts.json';
+    $attempts = [];
+    
+    if (file_exists($attempts_file)) {
+        $attempts = json_decode(file_get_contents($attempts_file), true) ?: [];
+    }
+    
+    $current_time = time();
+    $ip_attempts = $attempts[$ip] ?? ['count' => 0, 'first_attempt' => $current_time];
+    $ip_attempts['count']++;
+    $ip_attempts['first_attempt'] = $ip_attempts['first_attempt'];
+    
+    $attempts[$ip] = $ip_attempts;
+    file_put_contents($attempts_file, json_encode($attempts), LOCK_EX);
+}
+
+function clearFailedAttempts($ip) {
+    $attempts_file = __DIR__ . '/../config/login_attempts.json';
+    $attempts = [];
+    
+    if (file_exists($attempts_file)) {
+        $attempts = json_decode(file_get_contents($attempts_file), true) ?: [];
+    }
+    
+    unset($attempts[$ip]);
+    file_put_contents($attempts_file, json_encode($attempts), LOCK_EX);
+}
+
+// Input validation and sanitization functions
+function sanitizeInput($input) {
+    if (is_array($input)) {
+        return array_map('sanitizeInput', $input);
+    }
+    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+}
+
+function validateInput($input, $type = 'string', $required = true) {
+    if ($required && (empty($input) && $input !== '0')) {
+        return false;
+    }
+    
+    switch ($type) {
+        case 'email':
+            return filter_var($input, FILTER_VALIDATE_EMAIL);
+        case 'url':
+            return filter_var($input, FILTER_VALIDATE_URL);
+        case 'int':
+            return filter_var($input, FILTER_VALIDATE_INT);
+        case 'float':
+            return filter_var($input, FILTER_VALIDATE_FLOAT);
+        case 'string':
+        default:
+            return is_string($input);
+    }
+}
+
+function sanitizeFilename($filename) {
+    // Remove dangerous characters
+    $filename = preg_replace('/[^a-zA-Z0-9._-]/', '', $filename);
+    
+    // Prevent directory traversal
+    $filename = str_replace('..', '', $filename);
+    
+    // Limit length
+    if (strlen($filename) > 255) {
+        $filename = substr($filename, 0, 255);
+    }
+    
+    return $filename;
+}
+
+function validateFileUpload($file, $allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf']) {
+    // Check if file was uploaded
+    if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+        return false;
+    }
+    
+    // Check file size (max 10MB)
+    if ($file['size'] > 10 * 1024 * 1024) {
+        return false;
+    }
+    
+    // Check file extension
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($extension, $allowedTypes)) {
+        return false;
+    }
+    
+    // Check MIME type
+    $allowedMimes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf'
+    ];
+    
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    
+    if (!in_array($mime, $allowedMimes)) {
+        return false;
+    }
+    
+    return true;
+}
 
 // Authentication with enhanced security
 $is_authenticated = false;
 
-if (isset($_POST['login']) && $_POST['password'] === $admin_password) {
+// Pending testimonials count (used for admin notification badge)
+$pending_testimonials_count = 0;
+if (isset($testimonials) && is_array($testimonials)) {
+    $pending_testimonials_count = count(array_filter($testimonials, function($t) {
+        return ($t['status'] ?? 'pending') === 'pending';
+    }));
+}
+
+// Get client IP for rate limiting
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['HTTP_X_REAL_IP'] ?? 'unknown';
+
+if (isset($_POST['login'])) {
+    // Check rate limit first
+    if (!checkRateLimit($client_ip)) {
+        header('Location: projects-new.php?error=rate_limit');
+        exit;
+    }
+    
+    $input_password = (string)($_POST['password'] ?? '');
+    $login_ok = false;
+    if ($admin_password_hash !== '') {
+        $login_ok = password_verify($input_password, $admin_password_hash);
+    } else {
+        $login_ok = hash_equals((string)$admin_password, $input_password);
+    }
+
+    if ($login_ok) {
     // Validate CSRF token (constant-time compare + graceful recovery)
     $posted_token = $_POST['csrf_token'] ?? '';
     $session_token = $_SESSION['csrf_token'] ?? '';
@@ -60,31 +298,51 @@ if (isset($_POST['login']) && $_POST['password'] === $admin_password) {
     // Regenerate session ID for security
     session_regenerate_id(true);
     
+    // Clear failed attempts on successful login
+    clearFailedAttempts($client_ip);
+    
     $_SESSION['admin_authenticated'] = true;
-    $_SESSION['admin_password'] = $admin_password;
     $_SESSION['login_time'] = $current_time;
     $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
     $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); // Regenerate token
     $is_authenticated = true;
+    
+    // Redirect to clear URL parameters after successful login
+    header(
+        'Location: projects-new.php' .
+        ($requested_page !== 'projects' ? '?page=' . urlencode($requested_page) : '')
+    );
+    exit;
+    } else {
+        // Record failed attempt
+        recordFailedAttempt($client_ip);
+        error_log('Admin login failed for IP: ' . $client_ip);
+        
+        // Wrong password: redirect back with an error so user gets feedback.
+        header('Location: projects-new.php?error=invalid_login');
+        exit;
+    }
 } elseif (isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true) {
     // Verify session integrity
     if (isset($_SESSION['ip_address']) && $_SESSION['ip_address'] !== $_SERVER['REMOTE_ADDR']) {
         session_destroy();
-        header('Location: projects-new.php?security=1');
+        header(
+            'Location: projects-new.php?security=1' .
+            ($requested_page !== 'projects' ? '&page=' . urlencode($requested_page) : '')
+        );
         exit;
     }
     
     if (isset($_SESSION['user_agent']) && $_SESSION['user_agent'] !== $_SERVER['HTTP_USER_AGENT']) {
         session_destroy();
-        header('Location: projects-new.php?security=1');
+        header(
+            'Location: projects-new.php?security=1' .
+            ($requested_page !== 'projects' ? '&page=' . urlencode($requested_page) : '')
+        );
         exit;
     }
     
-    // Use password from session if available
-    if (isset($_SESSION['admin_password'])) {
-        $admin_password = $_SESSION['admin_password'];
-    }
     $is_authenticated = true;
 }
 
@@ -115,6 +373,32 @@ if (isset($_GET['heartbeat']) || isset($_GET['check_session'])) {
     exit;
 }
 
+if (
+    $is_authenticated &&
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    !isset($_POST['update_activity']) &&
+    !isset($_POST['force_logout'])
+) {
+    $same_origin_valid = true;
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($host !== '') {
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+        $referer = $_SERVER['HTTP_REFERER'] ?? '';
+        if ($origin !== '') {
+            $origin_host = parse_url($origin, PHP_URL_HOST);
+            $same_origin_valid = is_string($origin_host) && strcasecmp($origin_host, $host) === 0;
+        } elseif ($referer !== '') {
+            $referer_host = parse_url($referer, PHP_URL_HOST);
+            $same_origin_valid = is_string($referer_host) && strcasecmp($referer_host, $host) === 0;
+        }
+    }
+
+    if (!$same_origin_valid) {
+        http_response_code(403);
+        exit('Invalid request origin.');
+    }
+}
+
 // Handle form submissions
 if ($is_authenticated) {
     // Get current page
@@ -125,9 +409,285 @@ if ($is_authenticated) {
         $current_page = 'projects';
     }
     
-    // Settings form submissions
-    if ($current_page === 'settings') {
-        if (isset($_POST['update_settings'])) {
+    // Settings + Certifications (share storage in admin-settings.php)
+    if (in_array($current_page, ['settings', 'certifications'], true)) {
+        $saveSettings = function($admin_password, $site_settings, $admin_password_hash = '') {
+            $settings_data = "<?php\n/**\n * Site Settings\n */\n\n";
+            $settings_data .= "\$admin_password = '" . addslashes($admin_password) . "';\n";
+            if ($admin_password_hash !== '') {
+                $settings_data .= "\$site_settings['admin_password_hash'] = '" . addslashes($admin_password_hash) . "';\n";
+            }
+            $settings_data .= "\$site_settings = " . var_export($site_settings, true) . ";\n";
+            $settings_data .= "\n?>";
+            file_put_contents(__DIR__ . '/../config/admin-settings.php', $settings_data);
+        };
+
+        $safeSlug = function($name) {
+            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', (string)$name));
+            return trim($slug, '-');
+        };
+
+        $partners_upload_dir = __DIR__ . '/../assets/img/partners';
+        if (!is_dir($partners_upload_dir)) {
+            @mkdir($partners_upload_dir, 0775, true);
+        }
+
+        $savePartnerLogo = function($fileField) use ($partners_upload_dir) {
+            if (!isset($_FILES[$fileField]) || !is_array($_FILES[$fileField])) return '';
+            if (($_FILES[$fileField]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return '';
+
+            $tmp = $_FILES[$fileField]['tmp_name'];
+            $orig = $_FILES[$fileField]['name'] ?? 'logo';
+            $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+            if (!in_array($ext, $allowed, true)) return '';
+            if (!validateFileUpload($_FILES[$fileField], $allowed)) return '';
+
+            $base = preg_replace('/[^a-zA-Z0-9_-]+/', '-', pathinfo($orig, PATHINFO_FILENAME));
+            $base = trim($base, '-');
+            if ($base === '') $base = 'partner';
+            $filename = $base . '-' . date('Y-m-d_H-i-s') . '.' . $ext;
+            $dest = $partners_upload_dir . '/' . $filename;
+
+            if (!move_uploaded_file($tmp, $dest)) return '';
+            return 'partners/' . $filename; // relative to assets/img/
+        };
+
+        // Partners CRUD (stored in admin settings)
+        if (!isset($site_settings['global_partners_items']) || !is_array($site_settings['global_partners_items'])) {
+            $site_settings['global_partners_items'] = [];
+        }
+
+        // Certification cards CRUD (stored in admin settings)
+        if (!isset($site_settings['certification_cards']) || !is_array($site_settings['certification_cards'])) {
+            $site_settings['certification_cards'] = [];
+        }
+
+        $saveCertIcon = function($fileField) use ($partners_upload_dir) {
+            // reuse same upload dir base but store under /partners/ (or create /certifications/)
+            // We'll store under assets/img/partners/ for now to avoid new dirs.
+            if (!isset($_FILES[$fileField]) || !is_array($_FILES[$fileField])) return '';
+            if (($_FILES[$fileField]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return '';
+
+            $tmp = $_FILES[$fileField]['tmp_name'];
+            $orig = $_FILES[$fileField]['name'] ?? 'icon';
+            $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+            if (!in_array($ext, $allowed, true)) return '';
+            if (!validateFileUpload($_FILES[$fileField], $allowed)) return '';
+
+            $base = preg_replace('/[^a-zA-Z0-9_-]+/', '-', pathinfo($orig, PATHINFO_FILENAME));
+            $base = trim($base, '-');
+            if ($base === '') $base = 'cert';
+            $filename = $base . '-' . date('Y-m-d_H-i-s') . '.' . $ext;
+            $dest = $partners_upload_dir . '/' . $filename;
+
+            if (!move_uploaded_file($tmp, $dest)) return '';
+            return 'partners/' . $filename; // relative to assets/img/
+        };
+
+        if (isset($_POST['init_cert_cards'])) {
+            // Seed defaults matching current homepage cards
+            $site_settings['certification_cards'] = [
+                'iso-9001' => [
+                    'title_en' => 'ISO 9001:2015',
+                    'title_ar' => 'ISO 9001:2015',
+                    'category_en' => 'Quality Management',
+                    'category_ar' => 'إدارة الجودة',
+                    'desc_en' => trim((string)t('certifications_iso_desc')),
+                    'desc_ar' => trim((string)t('certifications_iso_desc')),
+                    'icon' => 'construction/badge-1.webp',
+                    'visible' => '1',
+                    'order' => 1,
+                ],
+                'osha' => [
+                    'title_en' => 'OSHA 30-Hour',
+                    'title_ar' => 'OSHA 30-Hour',
+                    'category_en' => trim((string)t('safety_standards')),
+                    'category_ar' => trim((string)t('safety_standards')),
+                    'desc_en' => trim((string)t('cert_osha_desc')),
+                    'desc_ar' => trim((string)t('cert_osha_desc')),
+                    'icon' => 'construction/badge-2.webp',
+                    'visible' => '1',
+                    'order' => 2,
+                ],
+                'licensed' => [
+                    'title_en' => trim((string)t('state_licensed')),
+                    'title_ar' => trim((string)t('state_licensed')),
+                    'category_en' => trim((string)t('legal_compliance')),
+                    'category_ar' => trim((string)t('legal_compliance')),
+                    'desc_en' => trim((string)t('cert_licensed_desc')),
+                    'desc_ar' => trim((string)t('cert_licensed_desc')),
+                    'icon' => 'construction/badge-3.webp',
+                    'visible' => '1',
+                    'order' => 3,
+                ],
+                'leed' => [
+                    'title_en' => trim((string)t('leed_certified')),
+                    'title_ar' => trim((string)t('leed_certified')),
+                    'category_en' => trim((string)t('sustainable_building')),
+                    'category_ar' => trim((string)t('sustainable_building')),
+                    'desc_en' => trim((string)t('cert_leed_desc')),
+                    'desc_ar' => trim((string)t('cert_leed_desc')),
+                    'icon' => 'construction/badge-4.webp',
+                    'visible' => '1',
+                    'order' => 4,
+                ],
+                'insured' => [
+                    'title_en' => trim((string)t('fully_insured')),
+                    'title_ar' => trim((string)t('fully_insured')),
+                    'category_en' => trim((string)t('risk_management')),
+                    'category_ar' => trim((string)t('risk_management')),
+                    'desc_en' => trim((string)t('cert_insured_desc')),
+                    'desc_ar' => trim((string)t('cert_insured_desc')),
+                    'icon' => 'construction/badge-6.webp',
+                    'visible' => '1',
+                    'order' => 5,
+                ],
+                'training' => [
+                    'title_en' => trim((string)t('skills_certified')),
+                    'title_ar' => trim((string)t('skills_certified')),
+                    'category_en' => trim((string)t('professional_training')),
+                    'category_ar' => trim((string)t('professional_training')),
+                    'desc_en' => trim((string)t('cert_skills_desc')),
+                    'desc_ar' => trim((string)t('cert_skills_desc')),
+                    'icon' => 'construction/badge-7.webp',
+                    'visible' => '1',
+                    'order' => 6,
+                ],
+            ];
+
+            $saveSettings($admin_password, $site_settings);
+            header('Location: projects-new.php?page=settings&success=cert_cards_updated');
+            exit;
+        }
+
+        if (isset($_POST['add_cert_card'])) {
+            $title_en = trim($_POST['cert_title_en'] ?? '');
+            $title_ar = trim($_POST['cert_title_ar'] ?? '');
+            $id = $safeSlug($title_en !== '' ? $title_en : $title_ar);
+            if ($id === '') $id = 'cert-' . date('YmdHis');
+            if (isset($site_settings['certification_cards'][$id])) {
+                $id .= '-' . substr((string)time(), -4);
+            }
+
+            $icon = $saveCertIcon('cert_icon');
+            if ($icon === '') {
+                $icon = trim($_POST['cert_icon_existing'] ?? '');
+            }
+
+            $site_settings['certification_cards'][$id] = [
+                'title_en' => $title_en,
+                'title_ar' => $title_ar,
+                'category_en' => trim($_POST['cert_category_en'] ?? ''),
+                'category_ar' => trim($_POST['cert_category_ar'] ?? ''),
+                'desc_en' => trim($_POST['cert_desc_en'] ?? ''),
+                'desc_ar' => trim($_POST['cert_desc_ar'] ?? ''),
+                'icon' => $icon,
+                'visible' => isset($_POST['cert_visible']) ? '1' : '0',
+                'order' => (int)($_POST['cert_order'] ?? 999),
+            ];
+
+            $saveSettings($admin_password, $site_settings);
+            header('Location: projects-new.php?page=settings&success=cert_cards_updated');
+            exit;
+        }
+
+        if (isset($_POST['edit_cert_card'])) {
+            $id = $_POST['cert_id'] ?? '';
+            if ($id !== '' && isset($site_settings['certification_cards'][$id])) {
+                $site_settings['certification_cards'][$id]['title_en'] = trim($_POST['cert_title_en'] ?? '');
+                $site_settings['certification_cards'][$id]['title_ar'] = trim($_POST['cert_title_ar'] ?? '');
+                $site_settings['certification_cards'][$id]['category_en'] = trim($_POST['cert_category_en'] ?? '');
+                $site_settings['certification_cards'][$id]['category_ar'] = trim($_POST['cert_category_ar'] ?? '');
+                $site_settings['certification_cards'][$id]['desc_en'] = trim($_POST['cert_desc_en'] ?? '');
+                $site_settings['certification_cards'][$id]['desc_ar'] = trim($_POST['cert_desc_ar'] ?? '');
+                $site_settings['certification_cards'][$id]['visible'] = isset($_POST['cert_visible']) ? '1' : '0';
+                $site_settings['certification_cards'][$id]['order'] = (int)($_POST['cert_order'] ?? 999);
+
+                $icon = $saveCertIcon('cert_icon');
+                if ($icon !== '') {
+                    $site_settings['certification_cards'][$id]['icon'] = $icon;
+                } else {
+                    $existing = trim($_POST['cert_icon_existing'] ?? '');
+                    if ($existing !== '') {
+                        $site_settings['certification_cards'][$id]['icon'] = $existing;
+                    }
+                }
+
+                $saveSettings($admin_password, $site_settings);
+                header('Location: projects-new.php?page=settings&success=cert_cards_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['delete_cert_card'])) {
+            $id = $_POST['cert_id'] ?? '';
+            if ($id !== '' && isset($site_settings['certification_cards'][$id])) {
+                unset($site_settings['certification_cards'][$id]);
+                $saveSettings($admin_password, $site_settings);
+                header('Location: projects-new.php?page=settings&success=cert_cards_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['add_partner'])) {
+            $name_en = trim($_POST['partner_name_en'] ?? '');
+            $name_ar = trim($_POST['partner_name_ar'] ?? '');
+            $url = trim($_POST['partner_url'] ?? '');
+            $visible = isset($_POST['partner_visible']) ? '1' : '0';
+
+            $id = $safeSlug($name_en !== '' ? $name_en : $name_ar);
+            if ($id === '') $id = 'partner-' . date('YmdHis');
+            if (isset($site_settings['global_partners_items'][$id])) {
+                $id .= '-' . substr((string)time(), -4);
+            }
+
+            $logo = $savePartnerLogo('partner_logo');
+
+            $site_settings['global_partners_items'][$id] = [
+                'name_en' => $name_en,
+                'name_ar' => $name_ar,
+                'url' => $url,
+                'logo' => $logo,
+                'visible' => $visible,
+            ];
+
+            $saveSettings($admin_password, $site_settings);
+            header('Location: projects-new.php?page=settings&success=partners_updated');
+            exit;
+        }
+
+        if (isset($_POST['edit_partner'])) {
+            $id = $_POST['partner_id'] ?? '';
+            if ($id !== '' && isset($site_settings['global_partners_items'][$id])) {
+                $site_settings['global_partners_items'][$id]['name_en'] = trim($_POST['partner_name_en'] ?? '');
+                $site_settings['global_partners_items'][$id]['name_ar'] = trim($_POST['partner_name_ar'] ?? '');
+                $site_settings['global_partners_items'][$id]['url'] = trim($_POST['partner_url'] ?? '');
+                $site_settings['global_partners_items'][$id]['visible'] = isset($_POST['partner_visible']) ? '1' : '0';
+
+                $logo = $savePartnerLogo('partner_logo');
+                if ($logo !== '') {
+                    $site_settings['global_partners_items'][$id]['logo'] = $logo;
+                }
+
+                $saveSettings($admin_password, $site_settings);
+                header('Location: projects-new.php?page=settings&success=partners_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['delete_partner'])) {
+            $id = $_POST['partner_id'] ?? '';
+            if ($id !== '' && isset($site_settings['global_partners_items'][$id])) {
+                unset($site_settings['global_partners_items'][$id]);
+                $saveSettings($admin_password, $site_settings);
+                header('Location: projects-new.php?page=settings&success=partners_updated');
+                exit;
+            }
+        }
+
+        if ($current_page === 'settings' && isset($_POST['update_settings'])) {
             // Password validation
             if (!empty($_POST['new_password'])) {
                 if ($_POST['new_password'] !== $_POST['confirm_password']) {
@@ -165,16 +725,17 @@ if ($is_authenticated) {
                 // Update password
                 $admin_password = $_POST['new_password'];
                 
-                // Update session with new password
-                $_SESSION['admin_password'] = $admin_password;
-                
                 // Force logout to require new password login
                 unset($_SESSION['admin_authenticated']);
                 session_write_close();
                 
+                $new_password_hash = password_hash($admin_password, PASSWORD_DEFAULT);
+                $site_settings['admin_password_hash'] = $new_password_hash;
+
                 // Save settings to file
                 $settings_data = "<?php\n/**\n * Site Settings\n */\n\n";
                 $settings_data .= "\$admin_password = '" . addslashes($admin_password) . "';\n";
+                $settings_data .= "\$site_settings['admin_password_hash'] = '" . addslashes($new_password_hash) . "';\n";
                 $settings_data .= "\$site_settings = " . var_export($site_settings, true) . ";\n";
                 $settings_data .= "\n?>";
                 
@@ -187,28 +748,30 @@ if ($is_authenticated) {
             
             // Update site settings (only if password wasn't changed)
             if (empty($_POST['new_password'])) {
-                $site_settings = [
+                // Merge to avoid wiping unrelated settings (e.g., partners list)
+                $site_settings = array_merge($site_settings, [
                     'site_name' => $_POST['site_name'] ?? 'Diar360',
                     'admin_email' => $_POST['admin_email'] ?? 'info@diar360.com',
                     'company_phone' => $_POST['company_phone'] ?? '+966 1 1 296 7735',
                     'company_address' => $_POST['company_address'] ?? 'Prince Mohammed Ibn Salman Ibn Abdulaziz Rd, Al Falah Dist, Riyadh - KSA',
-                    'maintenance_mode' => isset($_POST['maintenance_mode']) ? '1' : '0'
-                ];
+                    'maintenance_mode' => isset($_POST['maintenance_mode']) ? '1' : '0',
+
+                    // Homepage: Global Partners block (EN/AR)
+                    'global_partners_title_en' => trim($_POST['global_partners_title_en'] ?? ''),
+                    'global_partners_title_ar' => trim($_POST['global_partners_title_ar'] ?? ''),
+                    'global_partners_desc_en' => trim($_POST['global_partners_desc_en'] ?? ''),
+                    'global_partners_desc_ar' => trim($_POST['global_partners_desc_ar'] ?? ''),
+                ]);
                 
                 // Save settings to file
-                $settings_data = "<?php\n/**\n * Site Settings\n */\n\n";
-                $settings_data .= "\$admin_password = '" . addslashes($admin_password) . "';\n";
-                $settings_data .= "\$site_settings = " . var_export($site_settings, true) . ";\n";
-                $settings_data .= "\n?>";
-                
-                file_put_contents(__DIR__ . '/../config/admin-settings.php', $settings_data);
+                $saveSettings($admin_password, $site_settings);
                 header('Location: projects-new.php?page=settings&success=settings_updated');
                 exit;
             }
         }
         
-        // Backup functionality
-        if (isset($_GET['action']) && $_GET['action'] === 'backup') {
+        // Backup functionality (settings only)
+        if ($current_page === 'settings' && isset($_GET['action']) && $_GET['action'] === 'backup') {
             $backup_filename = 'projects-backup-' . date('Y-m-d-H-i-s') . '.php';
             $backup_content = "<?php\n/**\n * Projects Data Backup - " . date('Y-m-d H:i:s') . "\n */\n\n";
             $backup_content .= file_get_contents(__DIR__ . '/../config/projects-data.php');
@@ -219,10 +782,22 @@ if ($is_authenticated) {
             exit;
         }
         
-        // Restore functionality
-        if (isset($_POST['restore_backup']) && isset($_FILES['backup_file'])) {
+        // Restore functionality (settings only)
+        if ($current_page === 'settings' && isset($_POST['restore_backup']) && isset($_FILES['backup_file'])) {
             if ($_FILES['backup_file']['error'] === UPLOAD_ERR_OK) {
-                $backup_content = file_get_contents($_FILES['backup_file']['tmp_name']);
+                $backup_tmp = $_FILES['backup_file']['tmp_name'];
+                $backup_ext = strtolower(pathinfo($_FILES['backup_file']['name'] ?? '', PATHINFO_EXTENSION));
+                $backup_size = (int)($_FILES['backup_file']['size'] ?? 0);
+                if ($backup_ext !== 'php' || $backup_size <= 0 || $backup_size > 2 * 1024 * 1024) {
+                    header('Location: projects-new.php?page=settings&error=invalid_backup');
+                    exit;
+                }
+
+                $backup_content = file_get_contents($backup_tmp);
+                if (!is_string($backup_content) || strpos($backup_content, '<?php') === false) {
+                    header('Location: projects-new.php?page=settings&error=invalid_backup');
+                    exit;
+                }
                 
                 // Validate backup file
                 if (strpos($backup_content, '$projects = [') !== false) {
@@ -255,7 +830,8 @@ if ($is_authenticated) {
         }
 
         $safeSlug = function($name) {
-            $slug = strtolower(preg_replace('/[^a-z0-9]+/', '-', $name));
+            // Case-insensitive so "Civil Engineer" => "civil-engineer" (do not drop uppercase letters).
+            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', (string)$name));
             return trim($slug, '-');
         };
 
@@ -268,6 +844,7 @@ if ($is_authenticated) {
             $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
             $allowed = ['jpg', 'jpeg', 'png', 'webp'];
             if (!in_array($ext, $allowed, true)) return '';
+            if (!validateFileUpload($_FILES[$fileField], $allowed)) return '';
 
             $base = preg_replace('/[^a-zA-Z0-9_-]+/', '-', pathinfo($orig, PATHINFO_FILENAME));
             $base = trim($base, '-');
@@ -419,6 +996,204 @@ if ($is_authenticated) {
             }
         }
     }
+
+    // Careers / Jobs CRUD
+    if ($current_page === 'careers') {
+        if (!isset($job_posts) || !is_array($job_posts)) {
+            $job_posts = [];
+        }
+
+        $safeSlug = function($name) {
+            // Case-insensitive so "Civil Engineer" => "civil-engineer" (do not drop uppercase letters).
+            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', (string)$name));
+            return trim($slug, '-');
+        };
+
+        $normalizeLines = function($text) {
+            $text = str_replace("\r", "", (string)$text);
+            $lines = array_values(array_filter(array_map('trim', explode("\n", $text))));
+            return $lines;
+        };
+
+        $updateCareersData = function($job_posts) {
+            $data = "<?php\n/**\n * Careers / Jobs Data\n *\n * This file is written by the admin panel (admin/projects-new.php?page=careers).\n */\n\n";
+            $data .= "\$job_posts = " . var_export($job_posts, true) . ";\n\n?>\n";
+            file_put_contents(__DIR__ . '/../config/careers-data.php', $data);
+        };
+
+        if (isset($_POST['add_job'])) {
+            $title_en = trim($_POST['job_title'] ?? '');
+            $title_ar = trim($_POST['job_title_ar'] ?? '');
+            $slug = $safeSlug($title_en);
+            if ($slug === '') $slug = 'job-' . date('YmdHis');
+
+            $posted_at = trim($_POST['posted_at'] ?? '');
+            if ($posted_at === '') $posted_at = date('Y-m-d');
+
+            $job_posts[$slug] = [
+                // Back-compat: keep legacy keys as EN
+                'title' => $title_en,
+                'title_en' => $title_en,
+                'title_ar' => $title_ar,
+                'department' => trim($_POST['department'] ?? ''),
+                'department_en' => trim($_POST['department'] ?? ''),
+                'department_ar' => trim($_POST['department_ar'] ?? ''),
+                'location' => trim($_POST['location'] ?? ''),
+                'location_en' => trim($_POST['location'] ?? ''),
+                'location_ar' => trim($_POST['location_ar'] ?? ''),
+                'type' => trim($_POST['type'] ?? ''),
+                'type_en' => trim($_POST['type'] ?? ''),
+                'type_ar' => trim($_POST['type_ar'] ?? ''),
+                // Back-compat: keep legacy keys as EN
+                'summary' => trim($_POST['summary'] ?? ''),
+                'summary_en' => trim($_POST['summary'] ?? ''),
+                'summary_ar' => trim($_POST['summary_ar'] ?? ''),
+                'description' => trim($_POST['description'] ?? ''),
+                'description_en' => trim($_POST['description'] ?? ''),
+                'description_ar' => trim($_POST['description_ar'] ?? ''),
+                'responsibilities' => $normalizeLines($_POST['responsibilities'] ?? ''),
+                'responsibilities_en' => $normalizeLines($_POST['responsibilities'] ?? ''),
+                'responsibilities_ar' => $normalizeLines($_POST['responsibilities_ar'] ?? ''),
+                'requirements' => $normalizeLines($_POST['requirements'] ?? ''),
+                'requirements_en' => $normalizeLines($_POST['requirements'] ?? ''),
+                'requirements_ar' => $normalizeLines($_POST['requirements_ar'] ?? ''),
+                'visible' => isset($_POST['visible']) ? '1' : '0',
+                'posted_at' => $posted_at,
+                'updated_at' => date('Y-m-d'),
+            ];
+
+            $updateCareersData($job_posts);
+            header('Location: projects-new.php?page=careers&success=job_added');
+            exit;
+        }
+
+        if (isset($_POST['edit_job'])) {
+            $slug = $_POST['job_slug'] ?? '';
+            if ($slug !== '' && isset($job_posts[$slug])) {
+                $title_en = trim($_POST['job_title'] ?? '');
+                $title_ar = trim($_POST['job_title_ar'] ?? '');
+                $job_posts[$slug]['title'] = $title_en;
+                $job_posts[$slug]['title_en'] = $title_en;
+                $job_posts[$slug]['title_ar'] = $title_ar;
+                $job_posts[$slug]['department'] = trim($_POST['department'] ?? '');
+                $job_posts[$slug]['department_en'] = trim($_POST['department'] ?? '');
+                $job_posts[$slug]['department_ar'] = trim($_POST['department_ar'] ?? '');
+                $job_posts[$slug]['location'] = trim($_POST['location'] ?? '');
+                $job_posts[$slug]['location_en'] = trim($_POST['location'] ?? '');
+                $job_posts[$slug]['location_ar'] = trim($_POST['location_ar'] ?? '');
+                $job_posts[$slug]['type'] = trim($_POST['type'] ?? '');
+                $job_posts[$slug]['type_en'] = trim($_POST['type'] ?? '');
+                $job_posts[$slug]['type_ar'] = trim($_POST['type_ar'] ?? '');
+                $job_posts[$slug]['summary'] = trim($_POST['summary'] ?? '');
+                $job_posts[$slug]['summary_en'] = trim($_POST['summary'] ?? '');
+                $job_posts[$slug]['summary_ar'] = trim($_POST['summary_ar'] ?? '');
+                $job_posts[$slug]['description'] = trim($_POST['description'] ?? '');
+                $job_posts[$slug]['description_en'] = trim($_POST['description'] ?? '');
+                $job_posts[$slug]['description_ar'] = trim($_POST['description_ar'] ?? '');
+                $job_posts[$slug]['responsibilities'] = $normalizeLines($_POST['responsibilities'] ?? '');
+                $job_posts[$slug]['responsibilities_en'] = $normalizeLines($_POST['responsibilities'] ?? '');
+                $job_posts[$slug]['responsibilities_ar'] = $normalizeLines($_POST['responsibilities_ar'] ?? '');
+                $job_posts[$slug]['requirements'] = $normalizeLines($_POST['requirements'] ?? '');
+                $job_posts[$slug]['requirements_en'] = $normalizeLines($_POST['requirements'] ?? '');
+                $job_posts[$slug]['requirements_ar'] = $normalizeLines($_POST['requirements_ar'] ?? '');
+                $job_posts[$slug]['visible'] = isset($_POST['visible']) ? '1' : '0';
+
+                $posted_at = trim($_POST['posted_at'] ?? '');
+                if ($posted_at !== '') {
+                    $job_posts[$slug]['posted_at'] = $posted_at;
+                } elseif (!isset($job_posts[$slug]['posted_at'])) {
+                    $job_posts[$slug]['posted_at'] = date('Y-m-d');
+                }
+
+                $job_posts[$slug]['updated_at'] = date('Y-m-d');
+
+                $updateCareersData($job_posts);
+                header('Location: projects-new.php?page=careers&success=job_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['delete_job'])) {
+            $slug = $_POST['job_slug'] ?? '';
+            if ($slug !== '' && isset($job_posts[$slug])) {
+                unset($job_posts[$slug]);
+                $updateCareersData($job_posts);
+                header('Location: projects-new.php?page=careers&success=job_deleted');
+                exit;
+            }
+        }
+    }
+
+    // Testimonials CRUD (moderation)
+    if ($current_page === 'testimonials') {
+        if (!isset($testimonials) || !is_array($testimonials)) {
+            $testimonials = [];
+        }
+
+        $saveTestimonials = function($testimonials) {
+            $data = "<?php\n/**\n * Testimonials Data\n *\n * - Public submissions append here as \"pending\"\n * - Admin moderates (approve/visible/edit/delete)\n */\n\n";
+            $data .= "\$testimonials = " . var_export($testimonials, true) . ";\n\n?>\n";
+            file_put_contents(__DIR__ . '/../config/testimonials-data.php', $data);
+        };
+
+        $normLines = function($t) {
+            $t = trim((string)$t);
+            return $t;
+        };
+
+        if (isset($_POST['approve_testimonial'])) {
+            $id = $_POST['testimonial_id'] ?? '';
+            if ($id !== '' && isset($testimonials[$id])) {
+                $testimonials[$id]['status'] = 'approved';
+                $testimonials[$id]['visible'] = '1';
+                $testimonials[$id]['updated_at'] = date('Y-m-d H:i:s');
+                $saveTestimonials($testimonials);
+                header('Location: projects-new.php?page=testimonials&success=testimonials_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['hide_testimonial'])) {
+            $id = $_POST['testimonial_id'] ?? '';
+            if ($id !== '' && isset($testimonials[$id])) {
+                $testimonials[$id]['visible'] = '0';
+                $testimonials[$id]['updated_at'] = date('Y-m-d H:i:s');
+                $saveTestimonials($testimonials);
+                header('Location: projects-new.php?page=testimonials&success=testimonials_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['edit_testimonial'])) {
+            $id = $_POST['testimonial_id'] ?? '';
+            if ($id !== '' && isset($testimonials[$id])) {
+                $testimonials[$id]['name'] = trim($_POST['t_name'] ?? '');
+                $testimonials[$id]['rating'] = max(1, min(5, (int)($_POST['t_rating'] ?? 5)));
+                $testimonials[$id]['message_en'] = $normLines($_POST['t_message_en'] ?? '');
+                $testimonials[$id]['message_ar'] = $normLines($_POST['t_message_ar'] ?? '');
+                $testimonials[$id]['role_en'] = trim($_POST['t_role_en'] ?? '');
+                $testimonials[$id]['role_ar'] = trim($_POST['t_role_ar'] ?? '');
+                $testimonials[$id]['company_en'] = trim($_POST['t_company_en'] ?? '');
+                $testimonials[$id]['company_ar'] = trim($_POST['t_company_ar'] ?? '');
+                $testimonials[$id]['status'] = in_array($_POST['t_status'] ?? 'pending', ['pending', 'approved', 'rejected'], true) ? ($_POST['t_status'] ?? 'pending') : 'pending';
+                $testimonials[$id]['visible'] = isset($_POST['t_visible']) ? '1' : '0';
+                $testimonials[$id]['updated_at'] = date('Y-m-d H:i:s');
+                $saveTestimonials($testimonials);
+                header('Location: projects-new.php?page=testimonials&success=testimonials_updated');
+                exit;
+            }
+        }
+
+        if (isset($_POST['delete_testimonial'])) {
+            $id = $_POST['testimonial_id'] ?? '';
+            if ($id !== '' && isset($testimonials[$id])) {
+                unset($testimonials[$id]);
+                $saveTestimonials($testimonials);
+                header('Location: projects-new.php?page=testimonials&success=testimonials_updated');
+                exit;
+            }
+        }
+    }
     
     // Global backup functionality (accessible from any page)
     if (isset($_GET['action']) && $_GET['action'] === 'backup' && $is_authenticated) {
@@ -435,12 +1210,14 @@ if ($is_authenticated) {
     // Add Project
     if (isset($_POST['add_project'])) {
         $title = $_POST['title'];
+        $title_ar = $_POST['title_ar'];
         $category = $_POST['category'];
         $status = $_POST['status'];
         $location = $_POST['location'];
         $contract_value = $_POST['contract_value'];
         $scope = $_POST['scope'];
         $description = $_POST['description'];
+        $description_ar = $_POST['description_ar'];
         $visible = isset($_POST['visible']) ? 1 : 0;
         
         // Create slug from title
@@ -461,6 +1238,11 @@ if ($is_authenticated) {
         
         foreach ($image_fields as $field => $filename) {
             if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+                // Validate file upload
+                if (!validateFileUpload($_FILES[$field], ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                    continue; // Skip this file if invalid
+                }
+                
                 $tmp_name = $_FILES[$field]['tmp_name'];
                 $upload_path = __DIR__ . '/../assets/img/projects/' . $filename;
                 
@@ -530,22 +1312,26 @@ if ($is_authenticated) {
             }
             
             // Validate and move PDF
-            $file_type = mime_content_type($pdf_tmp_name);
-            if ($file_type === 'application/pdf') {
-                move_uploaded_file($pdf_tmp_name, $pdf_upload_path);
-                $contract_pdf_path = $pdf_filename;
+            if (isset($_FILES['contract_pdf']) && validateFileUpload($_FILES['contract_pdf'], ['pdf'])) {
+                $file_type = mime_content_type($pdf_tmp_name);
+                if ($file_type === 'application/pdf') {
+                    move_uploaded_file($pdf_tmp_name, $pdf_upload_path);
+                    $contract_pdf_path = $pdf_filename;
+                }
             }
         }
         
         // Add to projects array
         $projects[$slug] = [
             'title' => $title,
+            'title_ar' => $title_ar,
             'category' => $category,
             'status' => $status,
             'location' => $location,
             'contract_value' => $contract_value,
             'scope' => $scope,
             'description' => $description,
+            'description_ar' => $description_ar,
             'contract_pdf' => $contract_pdf_path,
             'visible' => $visible,
             'specs' => [
@@ -566,12 +1352,14 @@ if ($is_authenticated) {
         $slug = $_POST['project_slug'];
         if (isset($projects[$slug])) {
             $projects[$slug]['title'] = $_POST['title'];
+            $projects[$slug]['title_ar'] = $_POST['title_ar'];
             $projects[$slug]['category'] = $_POST['category'];
             $projects[$slug]['status'] = $_POST['status'];
             $projects[$slug]['location'] = $_POST['location'];
             $projects[$slug]['contract_value'] = $_POST['contract_value'];
             $projects[$slug]['scope'] = $_POST['scope'];
             $projects[$slug]['description'] = $_POST['description'];
+            $projects[$slug]['description_ar'] = $_POST['description_ar'];
             $projects[$slug]['visible'] = isset($_POST['visible']) ? 1 : 0;
             
             // Handle image uploads
@@ -819,122 +1607,392 @@ function updateTeamData($ceo_profile, $team_members) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diar360 Admin - Projects</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Force color override for immediate effect */
-        .bg-primary {
-            background-color: #13529D !important;
-        }
-        
-        .bg-sidebar {
-            background-color: #13529D !important;
-        }
-        
-        .text-sidebar-foreground, .sidebar * {
-            color: #FFFFFF !important;
-        }
-        
-        body, .text-foreground, h1, h2, h3, h4, h5, h6, p, span, div, td, th, label, input, textarea, select, option, .project-title, .project-location, .project-value, .project-scope, .project-description, .project-category, .project-status, .text-muted-foreground, .text-card-foreground {
-            color: #0F2A49 !important;
-        }
-        
-        /* Ensure sidebar text stays white */
-        .sidebar, .sidebar *, .bg-sidebar, .bg-sidebar * {
-            color: #FFFFFF !important;
-        }
-        
-        /* Active navigation highlighting */
-        .nav-item.active {
-            background-color: #265AA2 !important;
-            color: #FFFFFF !important;
-        }
-        
-        .nav-item:not(.active) {
-            background-color: transparent !important;
-            color: #FFFFFF !important;
-        }
-        
-        .nav-item {
-            transition: all 0.3s ease !important;
-        }
-        
-        .nav-item:hover:not(.active) {
-            background-color: rgba(38, 90, 162, 0.3) !important;
-            color: #FFFFFF !important;
-            transform: translateX(5px) !important;
+        :root {
+            --card: 0 0% 100%;
+            --border: 214 32% 91%;
+            --foreground: 215 28% 17%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215 16% 47%;
+            --primary: 214 78% 35%;
+            --primary-foreground: 0 0% 100%;
+            --destructive: 0 73% 51%;
+            --sidebar-background: 214 78% 35%;
+            --sidebar-foreground: 0 0% 100%;
+            --sidebar-accent: 214 70% 42%;
+            --sidebar-accent-foreground: 0 0% 100%;
+            --sidebar-border: 214 45% 50%;
+            --status-completed: 142 65% 36%;
+            --status-in-progress: 217 91% 60%;
+            --status-planning: 43 96% 56%;
+            --status-on-hold: 220 9% 46%;
+            --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        .sidebar-logout,
-        .sidebar-logout * {
-            color: hsl(var(--destructive)) !important;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #F8FAFC; color: #1E293B; line-height: 1.6; }
+        
+        .min-h-screen { min-height: 100vh; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+        .max-w-md { max-width: 448px; }
+        .p-4 { padding: 16px; }
+        .p-6 { padding: 24px; }
+        .p-8 { padding: 32px; }
+        .px-3 { padding-left: 12px; padding-right: 12px; }
+        .px-4 { padding-left: 16px; padding-right: 16px; }
+        .px-6 { padding-left: 24px; padding-right: 24px; }
+        .py-2 { padding-top: 8px; padding-bottom: 8px; }
+        .py-2\.5 { padding-top: 10px; padding-bottom: 10px; }
+        .py-4 { padding-top: 16px; padding-bottom: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mt-4 { margin-top: 16px; }
+        .ml-auto { margin-left: auto; }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 14px; }
+        .text-lg { font-size: 18px; }
+        .text-xl { font-size: 20px; }
+        .text-2xl { font-size: 24px; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .font-heading { font-weight: 600; }
+        .rounded-lg { border-radius: 8px; }
+        .rounded-xl { border-radius: 12px; }
+        .border { border: 1px solid #E2E8F0; }
+        .border-b { border-bottom: 1px solid #E2E8F0; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .transition-all { transition: all 0.3s ease; }
+        .transition-colors { transition: color 0.2s ease, background-color 0.2s ease; }
+        .hidden { display: none; }
+        .block { display: block; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .top-1\/2 { top: 50%; }
+        .right-3 { right: 12px; }
+        .bottom-4 { bottom: 16px; }
+        .z-10 { z-index: 10; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .transform { transform: translateY(-50%); }
+        .-translate-y-1\/2 { transform: translateY(-50%); }
+        .shrink-0 { flex-shrink: 0; }
+        .whitespace-nowrap { white-space: nowrap; }
+        .h-10 { height: 40px; }
+        .h-16 { height: 64px; }
+        .h-12 { height: 48px; }
+        .w-10 { width: 40px; }
+        .w-12 { width: 48px; }
+        .w-5 { width: 20px; }
+        
+        .bg-background { background-color: #F8FAFC; }
+        .bg-card { background-color: #FFFFFF; }
+        .bg-primary { background-color: #13529D; }
+        .bg-sidebar { background-color: #13529D; }
+        .bg-muted { background-color: #F1F5F9; }
+        .bg-red-50 { background-color: #FEF2F2; }
+        .bg-yellow-100 { background-color: #FEF3C7; }
+        .bg-gray-300 { background-color: #D1D5DB; }
+        .bg-orange-500 { background-color: #F97316; }
+        .bg-orange-600 { background-color: #EA580C; }
+        .bg-blue-600 { background-color: #2563EB; }
+        .bg-blue-700 { background-color: #1D4ED8; }
+        .bg-gray-700 { background-color: #374151; }
+        .bg-black { background-color: #000000; }
+        .bg-black\/50 { background-color: rgba(0, 0, 0, 0.5); }
+        
+        .text-foreground { color: #1E293B; }
+        .text-card-foreground { color: #1E293B; }
+        .text-primary-foreground { color: #FFFFFF; }
+        .text-sidebar-foreground { color: #FFFFFF; }
+        .text-muted-foreground { color: #64748B; }
+        .text-red-500 { color: #EF4444; }
+        .text-red-800 { color: #991B1B; }
+        .text-yellow-600 { color: #D97706; }
+        .text-white { color: #FFFFFF; }
+        .text-destructive { color: #DC2626; }
+        
+        .border-border { border-color: #E2E8F0; }
+        .border-input { border-color: #D1D5DB; }
+        .border-red-200 { border-color: #FECACA; }
+        .ring-ring { --tw-ring-color: #13529D; }
+        
+        .hover\:bg-primary:hover { background-color: #0F4C81; }
+        .hover\:bg-destructive\/20:hover { background-color: rgba(220, 38, 38, 0.2); }
+        .hover\:bg-gray-400:hover { background-color: #9CA3AF; }
+        .hover\:text-foreground:hover { color: #1E293B; }
+        
+        .focus\:outline-none:focus { outline: none; }
+        .focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--tw-ring-color); }
+        .focus\:ring-ring:focus { box-shadow: 0 0 0 2px #13529D; }
+        
+        .sidebar { position: fixed; top: 0; left: 0; width: 280px; height: 100vh; background-color: #13529D; color: #FFFFFF; z-index: 40; transition: transform 0.3s ease; }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 30; display: none; }
+        .main-content-shifted { margin-left: 280px; transition: margin-left 0.3s ease; }
+        
+        button { cursor: pointer; border: none; border-radius: 6px; font-weight: 500; transition: all 0.2s ease; }
+        .btn-primary { background-color: #13529D; color: #FFFFFF; padding: 8px 16px; }
+        .btn-primary:hover { background-color: #0F4C81; }
+        .btn-secondary { background-color: #6B7280; color: #FFFFFF; padding: 8px 16px; }
+        .btn-secondary:hover { background-color: #4B5563; }
+        
+        input, textarea, select { width: 100%; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 6px; background-color: #FFFFFF; color: #1E293B; font-size: 14px; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #13529D; box-shadow: 0 0 0 3px rgba(19, 82, 157, 0.1); }
+        
+        .card { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content-shifted { margin-left: 0; }
+            .mobile-header-btn { display: flex !important; }
+            .sidebar-text { display: none; }
         }
         
-        /* Project Status Badge Colors */
-        .status-badge.completed {
-            background-color: hsl(120, 60%, 40%) !important;
-            color: white !important;
+        .cursor-pointer { cursor: pointer; }
+        .select-none { user-select: none; }
+        .overflow-hidden { overflow: hidden; }
+        .opacity-0 { opacity: 0; }
+        .opacity-100 { opacity: 1; }
+        .space-y-4 > * + * { margin-top: 16px; }
+        .space-x-3 > * + * { margin-left: 12px; }
+        .py-2\.5 { padding-top: 10px; padding-bottom: 10px; }
+        .py-4 { padding-top: 16px; padding-bottom: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mt-4 { margin-top: 16px; }
+        .ml-auto { margin-left: auto; }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 14px; }
+        .text-lg { font-size: 18px; }
+        .text-xl { font-size: 20px; }
+        .text-2xl { font-size: 24px; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .font-heading { font-weight: 600; }
+        .rounded-lg { border-radius: 8px; }
+        .rounded-xl { border-radius: 12px; }
+        .border { border: 1px solid #E2E8F0; }
+        .border-b { border-bottom: 1px solid #E2E8F0; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .transition-all { transition: all 0.3s ease; }
+        .transition-colors { transition: color 0.2s ease, background-color 0.2s ease; }
+        .hidden { display: none; }
+        .block { display: block; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .top-1\/2 { top: 50%; }
+        .right-3 { right: 12px; }
+        .bottom-4 { bottom: 16px; }
+        .z-10 { z-index: 10; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .transform { transform: translateY(-50%); }
+        .-translate-y-1\/2 { transform: translateY(-50%); }
+        .shrink-0 { flex-shrink: 0; }
+        .whitespace-nowrap { white-space: nowrap; }
+        .h-10 { height: 40px; }
+        .h-16 { height: 64px; }
+        .h-12 { height: 48px; }
+        .w-10 { width: 40px; }
+        .w-12 { width: 48px; }
+        .w-5 { width: 20px; }
+        
+        /* Background Colors */
+        .bg-background { background-color: #F8FAFC; }
+        .bg-card { background-color: #FFFFFF; }
+        .bg-primary { background-color: #13529D; }
+        .bg-sidebar { background-color: #13529D; }
+        .bg-muted { background-color: #F1F5F9; }
+        .bg-red-50 { background-color: #FEF2F2; }
+        .bg-yellow-100 { background-color: #FEF3C7; }
+        .bg-gray-300 { background-color: #D1D5DB; }
+        .bg-orange-500 { background-color: #F97316; }
+        .bg-orange-600 { background-color: #EA580C; }
+        .bg-blue-600 { background-color: #2563EB; }
+        .bg-blue-700 { background-color: #1D4ED8; }
+        .bg-gray-700 { background-color: #374151; }
+        .bg-black { background-color: #000000; }
+        .bg-black\/50 { background-color: rgba(0, 0, 0, 0.5); }
+        
+        /* Text Colors */
+        .text-foreground { color: #1E293B; }
+        .text-card-foreground { color: #1E293B; }
+        .text-primary-foreground { color: #FFFFFF; }
+        .text-sidebar-foreground { color: #FFFFFF; }
+        .text-muted-foreground { color: #64748B; }
+        .text-red-500 { color: #EF4444; }
+        .text-red-800 { color: #991B1B; }
+        .text-yellow-600 { color: #D97706; }
+        .text-white { color: #FFFFFF; }
+        .text-destructive { color: #DC2626; }
+        
+        /* Border Colors */
+        .border-border { border-color: #E2E8F0; }
+        .border-input { border-color: #D1D5DB; }
+        .border-red-200 { border-color: #FECACA; }
+        .ring-ring { --tw-ring-color: #13529D; }
+        
+        /* Hover States */
+        .hover\:bg-primary:hover { background-color: #0F4C81; }
+        .hover\:bg-destructive\/20:hover { background-color: rgba(220, 38, 38, 0.2); }
+        .hover\:bg-gray-400:hover { background-color: #9CA3AF; }
+        .hover\:text-foreground:hover { color: #1E293B; }
+        
+        /* Focus States */
+        .focus\:outline-none:focus { outline: none; }
+        .justify-center { justify-content: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+        .max-w-md { max-width: 448px; }
+        .p-4 { padding: 16px; }
+        .p-6 { padding: 24px; }
+        .p-8 { padding: 32px; }
+        .px-3 { padding-left: 12px; padding-right: 12px; }
+        .px-4 { padding-left: 16px; padding-right: 16px; }
+        .px-6 { padding-left: 24px; padding-right: 24px; }
+        .py-2 { padding-top: 8px; padding-bottom: 8px; }
+        .py-2\.5 { padding-top: 10px; padding-bottom: 10px; }
+        .py-4 { padding-top: 16px; padding-bottom: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mt-4 { margin-top: 16px; }
+        .ml-auto { margin-left: auto; }
+        .text-center { text-align: center; }
+        .text-sm { font-size: 14px; }
+        .text-lg { font-size: 18px; }
+        .text-xl { font-size: 20px; }
+        .text-2xl { font-size: 24px; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .font-heading { font-weight: 600; }
+        .rounded-lg { border-radius: 8px; }
+        .rounded-xl { border-radius: 12px; }
+        .border { border: 1px solid #E2E8F0; }
+        .border-b { border-bottom: 1px solid #E2E8F0; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .transition-all { transition: all 0.3s ease; }
+        .transition-colors { transition: color 0.2s ease, background-color 0.2s ease; }
+        .hidden { display: none; }
+        .block { display: block; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .top-1\/2 { top: 50%; }
+        .right-3 { right: 12px; }
+        .bottom-4 { bottom: 16px; }
+        .z-10 { z-index: 10; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .transform { transform: translateY(-50%); }
+        .-translate-y-1\/2 { transform: translateY(-50%); }
+        .shrink-0 { flex-shrink: 0; }
+        .whitespace-nowrap { white-space: nowrap; }
+        .h-10 { height: 40px; }
+        .h-16 { height: 64px; }
+        .h-12 { height: 48px; }
+        .w-10 { width: 40px; }
+        .w-12 { width: 48px; }
+        .w-5 { width: 20px; }
+        
+        /* Background Colors */
+        .bg-background { background-color: #F8FAFC; }
+        .bg-card { background-color: #FFFFFF; }
+        .bg-primary { background-color: #13529D; }
+        .bg-sidebar { background-color: #13529D; }
+        .bg-muted { background-color: #F1F5F9; }
+        .bg-red-50 { background-color: #FEF2F2; }
+        .bg-yellow-100 { background-color: #FEF3C7; }
+        .bg-gray-300 { background-color: #D1D5DB; }
+        .bg-orange-500 { background-color: #F97316; }
+        .bg-orange-600 { background-color: #EA580C; }
+        .bg-blue-600 { background-color: #2563EB; }
+        .bg-blue-700 { background-color: #1D4ED8; }
+        .bg-gray-700 { background-color: #374151; }
+        .bg-black { background-color: #000000; }
+        .bg-black\/50 { background-color: rgba(0, 0, 0, 0.5); }
+        
+        /* Text Colors */
+        .text-foreground { color: #1E293B; }
+        .text-card-foreground { color: #1E293B; }
+        .text-primary-foreground { color: #FFFFFF; }
+        .text-sidebar-foreground { color: #FFFFFF; }
+        .text-muted-foreground { color: #64748B; }
+        .text-red-500 { color: #EF4444; }
+        .text-red-800 { color: #991B1B; }
+        .text-yellow-600 { color: #D97706; }
+        .text-white { color: #FFFFFF; }
+        .text-destructive { color: #DC2626; }
+        
+        /* Border Colors */
+        .border-border { border-color: #E2E8F0; }
+        .border-input { border-color: #D1D5DB; }
+        .border-red-200 { border-color: #FECACA; }
+        .ring-ring { --tw-ring-color: #13529D; }
+        
+        /* Hover States */
+        .hover\:bg-primary:hover { background-color: #0F4C81; }
+        .hover\:bg-destructive\/20:hover { background-color: rgba(220, 38, 38, 0.2); }
+        .hover\:bg-gray-400:hover { background-color: #9CA3AF; }
+        .hover\:text-foreground:hover { color: #1E293B; }
+        
+        /* Focus States */
+        .focus\:outline-none:focus { outline: none; }
+        .focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--tw-ring-color); }
+        .focus\:ring-ring:focus { box-shadow: 0 0 0 2px #13529D; }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background-color: #13529D;
+            color: #FFFFFF;
+            z-index: 40;
+            transition: transform 0.3s ease;
         }
         
-        .status-badge.in-progress {
-            background-color: hsl(38, 92%, 50%) !important;
-            color: white !important;
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 30;
+            display: none;
         }
         
-        .status-badge.planning {
-            background-color: hsl(45, 100%, 50%) !important;
-            color: white !important;
+        .main-content-shifted {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
         }
         
-        .status-badge.on-hold {
-            background-color: hsl(0, 0%, 55%) !important;
-            color: white !important;
-        }
-        
-        @import url('https://fonts.googleapis.com/css2?family=Domine:wght@400;500;600;700&family=Arimo:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=El+Messiri:wght@400;500;600;700&display=swap');
-        
-        :root {
-            --background: 34 100% 97%;
-            --foreground: 0 100% 29%; /* #0F2A49 */
-            --card: 34 60% 95%;
-            --card-foreground: 345 48% 25%;
-            --primary: 345 48% 25%; /* #13529D */
-            --primary-foreground: 34 100% 97%;
-            --secondary: 9 30% 62%;
-            --secondary-foreground: 34 100% 97%;
-            --muted: 34 30% 92%;
-            --muted-foreground: 345 20% 40%;
-            --accent: 9 30% 62%;
-            --accent-foreground: 34 100% 97%;
-            --destructive: 0 72% 51%;
-            --destructive-foreground: 0 0% 100%;
-            --border: 345 15% 85%;
-            --input: 345 15% 85%;
-            --ring: 345 48% 25%;
-            --sidebar-background: 345 48% 25%; /* #13529D */
-            --sidebar-foreground: 34 100% 97%; /* #FFFFFF */
-            --sidebar-primary: 34 100% 97%;
-            --sidebar-primary-foreground: 345 48% 25%;
-            --sidebar-accent: 345 40% 30%; /* #265AA2 */
-            --sidebar-accent-foreground: 34 100% 97%;
-            --sidebar-border: 216 62% 40%; /* #265AA2 */
-            --status-completed: 120 60% 40%; /* Green for completed */
-            --status-in-progress: 38 92% 50%; /* Blue for in progress */
-            --status-planning: 45 100% 50%; /* Orange for planning */
-            --status-on-hold: 0 0% 55%; /* Gray for on hold */
-            --font-heading: 'Domine', serif;
-            --font-body: 'Arimo', sans-serif;
-            --font-arabic: 'El Messiri', sans-serif;
-        }
-        
-        * {
-            border-color: hsl(var(--border));
-        }
-        
-        body {
-            background: hsl(var(--background));
-            color: hsl(var(--foreground));
-            font-family: var(--font-body);
-            overflow-x: hidden;
+        /* Card Styles */
+        .card {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         h1, h2, h3, h4, h5, h6 {
@@ -1276,6 +2334,92 @@ function updateTeamData($ceo_profile, $team_members) {
         .main-content-collapsed {
             margin-left: 72px;
         }
+
+        /* Project add/edit modal cleanup */
+        #project-modal .modal-shell {
+            width: min(1100px, calc(100vw - 2rem));
+            max-height: min(92vh, 920px);
+            overflow-y: auto;
+            border-radius: 14px;
+        }
+
+        #project-modal .modal-header {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 1.25rem;
+        }
+
+        #project-modal .modal-body {
+            padding: 1.25rem;
+        }
+
+        #project-modal .form-section {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            background: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        #project-modal .form-section-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #0f2a49;
+            margin-bottom: 0.85rem;
+        }
+
+        #project-modal input[type="text"],
+        #project-modal textarea,
+        #project-modal select {
+            min-height: 42px;
+        }
+
+        #project-modal textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        #project-modal input[type="file"] {
+            font-size: 0.86rem;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #f8fafc;
+            padding: 0.35rem;
+        }
+
+        #project-modal input[type="file"]::file-selector-button {
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #0f2a49;
+            border-radius: 8px;
+            padding: 0.42rem 0.7rem;
+            margin-right: 0.7rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #project-modal .visibility-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        #project-modal .modal-footer {
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            padding: 0.95rem 1.25rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
         
         /* Responsive layout for admin panel */
         #sidebar-overlay {
@@ -1462,6 +2606,29 @@ function updateTeamData($ceo_profile, $team_members) {
                 <h2 class="text-2xl font-bold font-heading text-foreground">Diar360 Admin</h2>
                 <p class="text-muted-foreground mt-2">Project Management Dashboard</p>
             </div>
+
+            <?php if (isset($_GET['error'])): ?>
+                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-exclamation-circle text-red-500 mt-0.5"></i>
+                        <div>
+                            <?php
+                            switch ($_GET['error']) {
+                                case 'invalid_login':
+                                    echo 'Incorrect password. Please try again.';
+                                    break;
+                                case 'csrf':
+                                    echo 'Security token expired or invalid. Please try logging in again.';
+                                    break;
+                                default:
+                                    echo 'Login failed. Please try again.';
+                                    break;
+                            }
+                            ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
             
             <form method="post" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
@@ -1510,6 +2677,23 @@ function updateTeamData($ceo_profile, $team_members) {
             <a href="projects-new.php?page=team" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
                 <i class="fas fa-users h-5 w-5 shrink-0"></i>
                 <span class="sidebar-text text-sm font-medium whitespace-nowrap">Team</span>
+            </a>
+            <a href="projects-new.php?page=careers" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
+                <i class="fas fa-briefcase h-5 w-5 shrink-0"></i>
+                <span class="sidebar-text text-sm font-medium whitespace-nowrap">Careers</span>
+            </a>
+            <a href="projects-new.php?page=certifications" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
+                <i class="fas fa-certificate h-5 w-5 shrink-0"></i>
+                <span class="sidebar-text text-sm font-medium whitespace-nowrap">Certifications</span>
+            </a>
+            <a href="projects-new.php?page=testimonials" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
+                <i class="fas fa-comment-dots h-5 w-5 shrink-0"></i>
+                <span class="sidebar-text text-sm font-medium whitespace-nowrap">Testimonials</span>
+                <?php if (!empty($pending_testimonials_count)): ?>
+                    <span class="ml-auto inline-flex items-center justify-center text-xs font-bold rounded-full bg-amber-500 text-white w-6 h-6">
+                        <?php echo (int)$pending_testimonials_count; ?>
+                    </span>
+                <?php endif; ?>
             </a>
             <a href="projects-new.php?page=settings" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
                 <i class="fas fa-cog h-5 w-5 shrink-0"></i>
@@ -1566,6 +2750,12 @@ function updateTeamData($ceo_profile, $team_members) {
                                 case 'member_added': echo 'Team member added successfully'; break;
                                 case 'member_updated': echo 'Team member updated successfully'; break;
                                 case 'member_deleted': echo 'Team member deleted successfully'; break;
+                                case 'job_added': echo 'Job post created successfully'; break;
+                                case 'job_updated': echo 'Job post updated successfully'; break;
+                                case 'job_deleted': echo 'Job post deleted successfully'; break;
+                                case 'partners_updated': echo 'Global partners updated successfully'; break;
+                                case 'cert_cards_updated': echo 'Certification cards updated successfully'; break;
+                                case 'testimonials_updated': echo 'Testimonials updated successfully'; break;
                             }
                             ?>
                         </span>
@@ -1672,6 +2862,294 @@ function updateTeamData($ceo_profile, $team_members) {
                                             <span class="ml-2 text-xs text-orange-600">(Currently Active)</span>
                                         <?php endif; ?>
                                     </label>
+                                </div>
+
+                                <div class="bg-muted/30 rounded-lg p-4 border border-border">
+                                    <h4 class="font-medium text-foreground mb-3">Homepage: Global Partners Block</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Title (EN)</label>
+                                            <input type="text" name="global_partners_title_en" value="<?php echo htmlspecialchars($site_settings['global_partners_title_en'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <p class="text-xs text-muted-foreground mt-1">Leave empty to use the default translation.</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Title (AR)</label>
+                                            <input type="text" name="global_partners_title_ar" dir="rtl" value="<?php echo htmlspecialchars($site_settings['global_partners_title_ar'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Description (EN)</label>
+                                            <textarea name="global_partners_desc_en" rows="3" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"><?php echo htmlspecialchars($site_settings['global_partners_desc_en'] ?? ''); ?></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Description (AR)</label>
+                                            <textarea name="global_partners_desc_ar" rows="3" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"><?php echo htmlspecialchars($site_settings['global_partners_desc_ar'] ?? ''); ?></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <?php
+                                $partners = is_array($site_settings['global_partners_items'] ?? null) ? $site_settings['global_partners_items'] : [];
+                                $edit_partner_id = $_GET['edit_partner'] ?? '';
+                                $is_partner_edit = is_string($edit_partner_id) && $edit_partner_id !== '' && isset($partners[$edit_partner_id]);
+                                $partner = $is_partner_edit ? $partners[$edit_partner_id] : ['name_en' => '', 'name_ar' => '', 'url' => '', 'logo' => '', 'visible' => '1'];
+                                ?>
+
+                                <div class="bg-muted/30 rounded-lg p-4 border border-border">
+                                    <div class="flex items-center justify-between gap-3 mb-3">
+                                        <h4 class="font-medium text-foreground mb-0">Homepage: Global Partners (CRUD)</h4>
+                                        <a class="text-sm text-primary underline" href="projects-new.php?page=settings">Reset form</a>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div class="bg-card rounded-lg border border-border p-4">
+                                            <h5 class="font-medium text-foreground mb-3"><?php echo $is_partner_edit ? 'Edit Partner' : 'Add Partner'; ?></h5>
+
+                                            <form method="post" enctype="multipart/form-data" class="space-y-3">
+                                                <?php if ($is_partner_edit): ?>
+                                                    <input type="hidden" name="partner_id" value="<?php echo htmlspecialchars($edit_partner_id); ?>">
+                                                <?php endif; ?>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Name (EN)</label>
+                                                        <input type="text" name="partner_name_en" value="<?php echo htmlspecialchars($partner['name_en'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Name (AR)</label>
+                                                        <input type="text" name="partner_name_ar" dir="rtl" value="<?php echo htmlspecialchars($partner['name_ar'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label class="block text-sm font-medium text-foreground mb-2">Website URL (optional)</label>
+                                                    <input type="text" name="partner_url" placeholder="https://example.com" value="<?php echo htmlspecialchars($partner['url'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                </div>
+
+                                                <div>
+                                                    <label class="block text-sm font-medium text-foreground mb-2">Logo (optional)</label>
+                                                    <input type="file" name="partner_logo" accept=".jpg,.jpeg,.png,.webp,.svg" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    <?php if (!empty($partner['logo'])): ?>
+                                                        <p class="text-xs text-muted-foreground mt-1">Current: <?php echo htmlspecialchars($partner['logo']); ?></p>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <div class="flex items-center gap-2">
+                                                    <input id="partner-visible" type="checkbox" name="partner_visible" class="h-4 w-4 text-primary bg-background border-input rounded focus:ring-ring" <?php echo (($partner['visible'] ?? '0') === '1' || ($partner['visible'] ?? 0) === 1) ? 'checked' : ''; ?>>
+                                                    <label for="partner-visible" class="text-sm text-foreground">Visible on homepage</label>
+                                                </div>
+
+                                                <div class="flex items-center justify-end gap-3 pt-2">
+                                                    <?php if ($is_partner_edit): ?>
+                                                        <a href="projects-new.php?page=settings" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</a>
+                                                        <button type="submit" name="edit_partner" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                                            <i class="fas fa-save mr-2"></i>Update Partner
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button type="submit" name="add_partner" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                                            <i class="fas fa-plus mr-2"></i>Add Partner
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <div class="bg-card rounded-lg border border-border p-4">
+                                            <h5 class="font-medium text-foreground mb-3">Existing Partners</h5>
+
+                                            <?php if (empty($partners)): ?>
+                                                <div class="text-sm text-muted-foreground">No partners yet.</div>
+                                            <?php else: ?>
+                                                <div class="grid gap-2">
+                                                    <?php foreach ($partners as $pid => $p): ?>
+                                                        <div class="bg-background border border-border rounded-lg p-3 flex items-center justify-between gap-3">
+                                                            <div class="min-w-0">
+                                                                <div class="flex items-center gap-2 flex-wrap">
+                                                                    <span class="font-medium text-foreground"><?php echo htmlspecialchars(($p['name_en'] ?? '') ?: ($p['name_ar'] ?? '') ?: $pid); ?></span>
+                                                                    <span class="text-xs px-2 py-1 rounded-full <?php echo (($p['visible'] ?? '0') === '1' || ($p['visible'] ?? 0) === 1) ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'; ?>">
+                                                                        <?php echo (($p['visible'] ?? '0') === '1' || ($p['visible'] ?? 0) === 1) ? 'Visible' : 'Hidden'; ?>
+                                                                    </span>
+                                                                    <span class="text-xs text-muted-foreground break-all">ID: <?php echo htmlspecialchars($pid); ?></span>
+                                                                </div>
+                                                                <?php if (!empty($p['url'])): ?>
+                                                                    <div class="text-xs text-muted-foreground break-all"><?php echo htmlspecialchars($p['url']); ?></div>
+                                                                <?php endif; ?>
+                                                            </div>
+
+                                                            <div class="flex items-center gap-2 shrink-0">
+                                                                <a href="projects-new.php?page=settings&edit_partner=<?php echo urlencode($pid); ?>" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm">
+                                                                    <i class="fas fa-edit mr-2"></i>Edit
+                                                                </a>
+                                                                <form method="post" onsubmit="return confirm('Delete this partner?');">
+                                                                    <input type="hidden" name="partner_id" value="<?php echo htmlspecialchars($pid); ?>">
+                                                                    <button type="submit" name="delete_partner" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm text-destructive">
+                                                                        <i class="fas fa-trash mr-2"></i>Delete
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <?php
+                                $certCards = is_array($site_settings['certification_cards'] ?? null) ? $site_settings['certification_cards'] : [];
+                                $edit_cert_id = $_GET['edit_cert'] ?? '';
+                                $is_cert_edit = is_string($edit_cert_id) && $edit_cert_id !== '' && isset($certCards[$edit_cert_id]);
+                                $cert = $is_cert_edit ? $certCards[$edit_cert_id] : [
+                                    'title_en' => '',
+                                    'title_ar' => '',
+                                    'category_en' => '',
+                                    'category_ar' => '',
+                                    'desc_en' => '',
+                                    'desc_ar' => '',
+                                    'icon' => '',
+                                    'visible' => '1',
+                                    'order' => 10,
+                                ];
+                                ?>
+
+                                <div class="bg-muted/30 rounded-lg p-4 border border-border">
+                                    <div class="flex items-center justify-between gap-3 mb-3">
+                                        <h4 class="font-medium text-foreground mb-0">Homepage: Certification Cards (CRUD)</h4>
+                                        <div class="flex items-center gap-3">
+                                            <form method="post">
+                                                <button type="submit" name="init_cert_cards" class="text-sm px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">
+                                                    <i class="fas fa-wand-magic-sparkles mr-2"></i>Load Defaults
+                                                </button>
+                                            </form>
+                                            <a class="text-sm text-primary underline" href="projects-new.php?page=settings">Reset form</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div class="bg-card rounded-lg border border-border p-4">
+                                            <h5 class="font-medium text-foreground mb-3"><?php echo $is_cert_edit ? 'Edit Card' : 'Add Card'; ?></h5>
+
+                                            <form method="post" enctype="multipart/form-data" class="space-y-3">
+                                                <?php if ($is_cert_edit): ?>
+                                                    <input type="hidden" name="cert_id" value="<?php echo htmlspecialchars($edit_cert_id); ?>">
+                                                <?php endif; ?>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Title (EN)</label>
+                                                        <input type="text" name="cert_title_en" value="<?php echo htmlspecialchars($cert['title_en'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Title (AR)</label>
+                                                        <input type="text" name="cert_title_ar" dir="rtl" value="<?php echo htmlspecialchars($cert['title_ar'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Category (EN)</label>
+                                                        <input type="text" name="cert_category_en" value="<?php echo htmlspecialchars($cert['category_en'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Category (AR)</label>
+                                                        <input type="text" name="cert_category_ar" dir="rtl" value="<?php echo htmlspecialchars($cert['category_ar'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Description (EN)</label>
+                                                        <textarea name="cert_desc_en" rows="3" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"><?php echo htmlspecialchars($cert['desc_en'] ?? ''); ?></textarea>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Description (AR)</label>
+                                                        <textarea name="cert_desc_ar" rows="3" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"><?php echo htmlspecialchars($cert['desc_ar'] ?? ''); ?></textarea>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Icon image (optional)</label>
+                                                        <input type="file" name="cert_icon" accept=".jpg,.jpeg,.png,.webp,.svg" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                        <input type="hidden" name="cert_icon_existing" value="<?php echo htmlspecialchars($cert['icon'] ?? ''); ?>">
+                                                        <?php if (!empty($cert['icon'])): ?>
+                                                            <p class="text-xs text-muted-foreground mt-1">Current: <?php echo htmlspecialchars($cert['icon']); ?></p>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-medium text-foreground mb-2">Order</label>
+                                                        <input type="number" name="cert_order" value="<?php echo htmlspecialchars((string)($cert['order'] ?? 10)); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                                        <div class="flex items-center gap-2 mt-3">
+                                                            <input id="cert-visible" type="checkbox" name="cert_visible" class="h-4 w-4 text-primary bg-background border-input rounded focus:ring-ring" <?php echo (($cert['visible'] ?? '0') === '1' || ($cert['visible'] ?? 0) === 1) ? 'checked' : ''; ?>>
+                                                            <label for="cert-visible" class="text-sm text-foreground">Visible on homepage</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center justify-end gap-3 pt-2">
+                                                    <?php if ($is_cert_edit): ?>
+                                                        <a href="projects-new.php?page=settings" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</a>
+                                                        <button type="submit" name="edit_cert_card" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                                            <i class="fas fa-save mr-2"></i>Update Card
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button type="submit" name="add_cert_card" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                                            <i class="fas fa-plus mr-2"></i>Add Card
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <div class="bg-card rounded-lg border border-border p-4">
+                                            <h5 class="font-medium text-foreground mb-3">Existing Cards</h5>
+
+                                            <?php if (empty($certCards)): ?>
+                                                <div class="text-sm text-muted-foreground">
+                                                    No cards yet. Click <strong>Load Defaults</strong> to import the existing homepage cards, then edit/disable/add new ones.
+                                                </div>
+                                            <?php else: ?>
+                                                <?php
+                                                uasort($certCards, function($a, $b) {
+                                                    $oa = (int)($a['order'] ?? 999);
+                                                    $ob = (int)($b['order'] ?? 999);
+                                                    if ($oa === $ob) return 0;
+                                                    return $oa <=> $ob;
+                                                });
+                                                ?>
+                                                <div class="grid gap-2">
+                                                    <?php foreach ($certCards as $cid => $c): ?>
+                                                        <div class="bg-background border border-border rounded-lg p-3 flex items-center justify-between gap-3">
+                                                            <div class="min-w-0">
+                                                                <div class="flex items-center gap-2 flex-wrap">
+                                                                    <span class="font-medium text-foreground"><?php echo htmlspecialchars(($c['title_en'] ?? '') ?: ($c['title_ar'] ?? '') ?: $cid); ?></span>
+                                                                    <span class="text-xs px-2 py-1 rounded-full <?php echo (($c['visible'] ?? '0') === '1' || ($c['visible'] ?? 0) === 1) ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'; ?>">
+                                                                        <?php echo (($c['visible'] ?? '0') === '1' || ($c['visible'] ?? 0) === 1) ? 'Visible' : 'Hidden'; ?>
+                                                                    </span>
+                                                                    <span class="text-xs text-muted-foreground">Order: <?php echo htmlspecialchars((string)($c['order'] ?? '')); ?></span>
+                                                                    <span class="text-xs text-muted-foreground break-all">ID: <?php echo htmlspecialchars($cid); ?></span>
+                                                                </div>
+                                                                <?php if (!empty($c['icon'])): ?>
+                                                                    <div class="text-xs text-muted-foreground break-all">Icon: <?php echo htmlspecialchars($c['icon']); ?></div>
+                                                                <?php endif; ?>
+                                                            </div>
+
+                                                            <div class="flex items-center gap-2 shrink-0">
+                                                                <a href="projects-new.php?page=settings&edit_cert=<?php echo urlencode($cid); ?>" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm">
+                                                                    <i class="fas fa-edit mr-2"></i>Edit
+                                                                </a>
+                                                                <form method="post" onsubmit="return confirm('Delete this card?');">
+                                                                    <input type="hidden" name="cert_id" value="<?php echo htmlspecialchars($cid); ?>">
+                                                                    <button type="submit" name="delete_cert_card" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm text-destructive">
+                                                                        <i class="fas fa-trash mr-2"></i>Delete
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <div class="flex justify-end">
@@ -1866,11 +3344,11 @@ function updateTeamData($ceo_profile, $team_members) {
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-foreground mb-2">LinkedIn URL</label>
-                                    <input type="url" name="ceo_social_linkedin" value="<?php echo htmlspecialchars($ceo_profile['socials']['linkedin'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <input type="text" name="ceo_social_linkedin" value="<?php echo htmlspecialchars($ceo_profile['socials']['linkedin'] ?? ''); ?>" placeholder="https://linkedin.com/... or #" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-foreground mb-2">X/Twitter URL</label>
-                                    <input type="url" name="ceo_social_twitter" value="<?php echo htmlspecialchars($ceo_profile['socials']['twitter'] ?? ''); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <input type="text" name="ceo_social_twitter" value="<?php echo htmlspecialchars($ceo_profile['socials']['twitter'] ?? ''); ?>" placeholder="https://x.com/... or #" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-foreground mb-2">Email Link</label>
@@ -2000,10 +3478,10 @@ function updateTeamData($ceo_profile, $team_members) {
                                     <div class="bg-muted/30 rounded-lg p-4 border border-border">
                                         <h4 class="font-medium text-foreground mb-3">Social Media</h4>
                                         <div class="space-y-3">
-                                            <input id="member-social-linkedin" type="url" name="social_linkedin" placeholder="LinkedIn URL" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                            <input id="member-social-twitter" type="url" name="social_twitter" placeholder="X/Twitter URL" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                            <input id="member-social-facebook" type="url" name="social_facebook" placeholder="Facebook URL" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                            <input id="member-social-instagram" type="url" name="social_instagram" placeholder="Instagram URL" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <input id="member-social-linkedin" type="text" name="social_linkedin" placeholder="LinkedIn URL (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <input id="member-social-twitter" type="text" name="social_twitter" placeholder="X/Twitter URL (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <input id="member-social-facebook" type="text" name="social_facebook" placeholder="Facebook URL (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <input id="member-social-instagram" type="text" name="social_instagram" placeholder="Instagram URL (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
                                         </div>
                                     </div>
                                     <div class="bg-muted/30 rounded-lg p-4 border border-border">
@@ -2011,7 +3489,7 @@ function updateTeamData($ceo_profile, $team_members) {
                                         <div class="space-y-3">
                                             <input id="member-qc-email" type="text" name="qc_email" placeholder="Email link (mailto:... or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
                                             <input id="member-qc-phone" type="text" name="qc_phone" placeholder="Phone link (tel:... or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                            <input id="member-qc-linkedin" type="url" name="qc_linkedin" placeholder="LinkedIn link (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <input id="member-qc-linkedin" type="text" name="qc_linkedin" placeholder="LinkedIn link (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
                                         </div>
                                     </div>
                                 </div>
@@ -2063,6 +3541,716 @@ function updateTeamData($ceo_profile, $team_members) {
                                 </div>
                             </form>
                         </div>
+                    </div>
+                </div>
+
+            <?php elseif ($current_page === 'certifications'): ?>
+                <?php
+                $certCards = is_array($site_settings['certification_cards'] ?? null) ? $site_settings['certification_cards'] : [];
+                $certVisibleCount = count(array_filter($certCards, fn($c) => ($c['visible'] ?? '0') === '1' || ($c['visible'] ?? 0) === 1));
+                uasort($certCards, function($a, $b) {
+                    $oa = (int)($a['order'] ?? 999);
+                    $ob = (int)($b['order'] ?? 999);
+                    if ($oa === $ob) return 0;
+                    return $oa <=> $ob;
+                });
+                ?>
+
+                <div class="space-y-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl lg:text-3xl font-heading font-bold text-foreground">Certifications</h1>
+                            <p class="text-muted-foreground mt-1">Manage the homepage certification cards (ISO/OSHA/Licensed/LEED/Insurance/Training)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <form method="post">
+                                <button type="submit" name="init_cert_cards" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors inline-flex items-center gap-2">
+                                    <i class="fas fa-wand-magic-sparkles"></i>
+                                    Load Defaults
+                                </button>
+                            </form>
+                            <button type="button" onclick="openCertAddModal()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors gap-2 inline-flex items-center">
+                                <i class="fas fa-plus h-4 w-4"></i>
+                                Add Card
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mobile-stats-grid grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="stats-card stats-card-total bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Total</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-primary"><?php echo count($certCards); ?></p>
+                        </div>
+                        <div class="stats-card stats-card-completed bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Visible</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-green-700"><?php echo $certVisibleCount; ?></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-card rounded-xl border border-border p-6">
+                        <div class="flex items-center justify-between gap-3 mb-4">
+                            <h3 class="text-lg font-heading font-bold text-foreground mb-0">Cards</h3>
+                            <a class="text-sm text-primary underline" href="../index.php#certifications" target="_blank">View on homepage</a>
+                        </div>
+
+                        <?php if (empty($certCards)): ?>
+                            <div class="text-sm text-muted-foreground">
+                                No cards yet. Click <strong>Load Defaults</strong> to import the existing homepage cards, then edit/disable/add new ones.
+                            </div>
+                        <?php else: ?>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-left text-muted-foreground">
+                                            <th class="py-2 pr-4">Title (EN)</th>
+                                            <th class="py-2 pr-4">Visible</th>
+                                            <th class="py-2 pr-4">Order</th>
+                                            <th class="py-2 pr-0 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-foreground">
+                                        <?php foreach ($certCards as $cid => $c): ?>
+                                            <tr class="border-t border-border">
+                                                <td class="py-3 pr-4">
+                                                    <div class="font-medium"><?php echo htmlspecialchars(($c['title_en'] ?? '') ?: $cid); ?></div>
+                                                    <div class="text-xs text-muted-foreground break-all">ID: <?php echo htmlspecialchars($cid); ?></div>
+                                                </td>
+                                                <td class="py-3 pr-4">
+                                                    <span class="text-xs px-2 py-1 rounded-full <?php echo (($c['visible'] ?? '0') === '1' || ($c['visible'] ?? 0) === 1) ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'; ?>">
+                                                        <?php echo (($c['visible'] ?? '0') === '1' || ($c['visible'] ?? 0) === 1) ? 'Yes' : 'No'; ?>
+                                                    </span>
+                                                </td>
+                                                <td class="py-3 pr-4"><?php echo htmlspecialchars((string)($c['order'] ?? '')); ?></td>
+                                                <td class="py-3 pr-0">
+                                                    <div class="flex items-center justify-end gap-2">
+                                                        <button type="button" onclick="openCertEditModal('<?php echo htmlspecialchars($cid); ?>')" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm">
+                                                            <i class="fas fa-edit mr-2"></i>Edit
+                                                        </button>
+                                                        <button type="button" onclick="openCertDeleteModal('<?php echo htmlspecialchars($cid); ?>')" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm text-destructive">
+                                                            <i class="fas fa-trash mr-2"></i>Delete
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Add/Edit Certification Modal -->
+                <div id="cert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-card rounded-xl border border-border max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 id="cert-modal-title" class="text-xl font-heading font-bold text-foreground">Add Card</h2>
+                                <button type="button" onclick="closeCertModal()" class="text-muted-foreground hover:text-foreground">
+                                    <i class="fas fa-times h-5 w-5"></i>
+                                </button>
+                            </div>
+
+                            <form id="cert-form" method="post" enctype="multipart/form-data" class="space-y-4">
+                                <input type="hidden" id="cert-id" name="cert_id" value="">
+                                <input type="hidden" id="cert-icon-existing" name="cert_icon_existing" value="">
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Title (EN)</label>
+                                        <input id="cert-title-en" type="text" name="cert_title_en" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Title (AR)</label>
+                                        <input id="cert-title-ar" type="text" name="cert_title_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Category (EN)</label>
+                                        <input id="cert-category-en" type="text" name="cert_category_en" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Category (AR)</label>
+                                        <input id="cert-category-ar" type="text" name="cert_category_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Order</label>
+                                        <input id="cert-order" type="number" name="cert_order" value="10" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-7">
+                                        <input id="cert-visible" type="checkbox" name="cert_visible" class="h-4 w-4 text-primary bg-background border-input rounded focus:ring-ring" checked>
+                                        <label for="cert-visible" class="text-sm text-foreground">Visible on homepage</label>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Description (EN)</label>
+                                        <textarea id="cert-desc-en" name="cert_desc_en" rows="4" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Description (AR)</label>
+                                        <textarea id="cert-desc-ar" name="cert_desc_ar" dir="rtl" rows="4" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Icon image (optional)</label>
+                                    <input type="file" name="cert_icon" accept=".jpg,.jpeg,.png,.webp,.svg" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <p id="cert-current-icon" class="text-xs text-muted-foreground mt-1"></p>
+                                </div>
+
+                                <div class="flex justify-end gap-3 pt-2">
+                                    <button type="button" onclick="closeCertModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
+                                    <button id="cert-submit-btn" type="submit" name="add_cert_card" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                        <i class="fas fa-save mr-2"></i>Save Card
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Certification Modal -->
+                <div id="cert-delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-card rounded-xl border border-border max-w-md w-full">
+                        <div class="p-6">
+                            <h3 class="text-lg font-heading font-bold text-foreground mb-2">Delete Card</h3>
+                            <p class="text-muted-foreground mb-6">Are you sure you want to delete <span id="cert-delete-name" class="font-medium text-foreground"></span>?</p>
+                            <form method="post">
+                                <input type="hidden" id="cert-delete-id" name="cert_id" value="">
+                                <div class="flex justify-end gap-3">
+                                    <button type="button" onclick="closeCertDeleteModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
+                                    <button type="submit" name="delete_cert_card" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                        <i class="fas fa-trash mr-2"></i>Delete
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    const certCards = <?php echo json_encode($certCards); ?>;
+
+                    function openCertAddModal() {
+                        const form = document.getElementById('cert-form');
+                        if (!form) return;
+                        form.reset();
+                        document.getElementById('cert-modal-title').textContent = 'Add Card';
+                        document.getElementById('cert-id').value = '';
+                        document.getElementById('cert-icon-existing').value = '';
+                        document.getElementById('cert-current-icon').textContent = '';
+                        document.getElementById('cert-visible').checked = true;
+
+                        const btn = document.getElementById('cert-submit-btn');
+                        btn.name = 'add_cert_card';
+                        btn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Card';
+                        document.getElementById('cert-modal').classList.remove('hidden');
+                    }
+
+                    function openCertEditModal(id) {
+                        const c = certCards?.[id];
+                        if (!c) return;
+                        const form = document.getElementById('cert-form');
+                        if (!form) return;
+                        form.reset();
+                        document.getElementById('cert-modal-title').textContent = 'Edit Card';
+                        document.getElementById('cert-id').value = id;
+                        document.getElementById('cert-title-en').value = c.title_en || '';
+                        document.getElementById('cert-title-ar').value = c.title_ar || '';
+                        document.getElementById('cert-category-en').value = c.category_en || '';
+                        document.getElementById('cert-category-ar').value = c.category_ar || '';
+                        document.getElementById('cert-desc-en').value = c.desc_en || '';
+                        document.getElementById('cert-desc-ar').value = c.desc_ar || '';
+                        document.getElementById('cert-order').value = (c.order ?? 10);
+                        document.getElementById('cert-visible').checked = (c.visible === '1' || c.visible === 1 || c.visible === true);
+                        document.getElementById('cert-icon-existing').value = c.icon || '';
+                        document.getElementById('cert-current-icon').textContent = c.icon ? ('Current: ' + c.icon) : '';
+
+                        const btn = document.getElementById('cert-submit-btn');
+                        btn.name = 'edit_cert_card';
+                        btn.innerHTML = '<i class="fas fa-save mr-2"></i>Update Card';
+                        document.getElementById('cert-modal').classList.remove('hidden');
+                    }
+
+                    function closeCertModal() {
+                        const modal = document.getElementById('cert-modal');
+                        if (modal) modal.classList.add('hidden');
+                    }
+
+                    function openCertDeleteModal(id) {
+                        const c = certCards?.[id];
+                        if (!c) return;
+                        document.getElementById('cert-delete-id').value = id;
+                        document.getElementById('cert-delete-name').textContent = c.title_en || id;
+                        document.getElementById('cert-delete-modal').classList.remove('hidden');
+                    }
+
+                    function closeCertDeleteModal() {
+                        const modal = document.getElementById('cert-delete-modal');
+                        if (modal) modal.classList.add('hidden');
+                    }
+                </script>
+
+            <?php elseif ($current_page === 'testimonials'): ?>
+                <?php
+                $t_items = is_array($testimonials ?? null) ? $testimonials : [];
+                // newest first
+                uasort($t_items, function($a, $b) {
+                    return strcmp((string)($b['created_at'] ?? ''), (string)($a['created_at'] ?? ''));
+                });
+                $pending_count = count(array_filter($t_items, fn($t) => ($t['status'] ?? 'pending') === 'pending'));
+                $visible_count = count(array_filter($t_items, fn($t) => ($t['visible'] ?? '0') === '1' || ($t['visible'] ?? 0) === 1));
+                ?>
+
+                <div class="space-y-8">
+                    <div>
+                        <h1 class="text-2xl lg:text-3xl font-heading font-bold text-foreground">Testimonials</h1>
+                        <p class="text-muted-foreground mt-1">User-submitted reviews from the website (approve and publish them here)</p>
+                    </div>
+
+                    <div class="mobile-stats-grid grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="stats-card stats-card-total bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Total</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-primary"><?php echo count($t_items); ?></p>
+                        </div>
+                        <div class="stats-card stats-card-planning bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Pending</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-amber-600"><?php echo $pending_count; ?></p>
+                        </div>
+                        <div class="stats-card stats-card-completed bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Visible</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-green-700"><?php echo $visible_count; ?></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-card rounded-xl border border-border p-6">
+                        <div class="flex items-center justify-between gap-3 mb-4">
+                            <h3 class="text-lg font-heading font-bold text-foreground mb-0">Submissions</h3>
+                            <a class="text-sm text-primary underline" href="../index.php#testimonials" target="_blank">View on homepage</a>
+                        </div>
+
+                        <?php if (empty($t_items)): ?>
+                            <div class="text-sm text-muted-foreground">No testimonials submitted yet.</div>
+                        <?php else: ?>
+                            <div class="grid gap-3">
+                                <?php foreach ($t_items as $id => $t): ?>
+                                    <?php
+                                    $status = $t['status'] ?? 'pending';
+                                    $isVisible = (($t['visible'] ?? '0') === '1' || ($t['visible'] ?? 0) === 1);
+                                    $msgPreview = trim((string)($t['message_en'] ?? ''));
+                                    if ($msgPreview === '') $msgPreview = trim((string)($t['message_ar'] ?? ''));
+                                    $msgPreview = mb_substr($msgPreview, 0, 140);
+                                    ?>
+                                    <div class="bg-background border border-border rounded-lg p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <p class="font-medium text-foreground mb-0"><?php echo htmlspecialchars($t['name'] ?? ''); ?></p>
+                                                <span class="text-xs px-2 py-1 rounded-full <?php echo $status === 'approved' ? 'bg-green-100 text-green-800' : ($status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'); ?>">
+                                                    <?php echo htmlspecialchars(ucfirst($status)); ?>
+                                                </span>
+                                                <span class="text-xs px-2 py-1 rounded-full <?php echo $isVisible ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'; ?>">
+                                                    <?php echo $isVisible ? 'Visible' : 'Hidden'; ?>
+                                                </span>
+                                                <div class="flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <?php 
+                                                    $rating = (int)($t['rating'] ?? 5);
+                                                    for ($i = 1; $i <= 5; $i++) {
+                                                        if ($i <= $rating) {
+                                                            echo '<i class="fas fa-star text-yellow-400 text-sm"></i>';
+                                                        } else {
+                                                            echo '<i class="far fa-star text-gray-300 text-sm"></i>';
+                                                        }
+                                                    }
+                                                    ?>
+                                                </div>
+                                                <span class="text-xs text-muted-foreground">Submitted: <?php echo htmlspecialchars($t['created_at'] ?? ''); ?></span>
+                                            </div>
+                                            <p class="text-sm text-muted-foreground mt-2 mb-0"><?php echo htmlspecialchars($msgPreview); ?><?php echo (strlen($msgPreview) >= 140 ? '…' : ''); ?></p>
+                                        </div>
+
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <?php if ($status !== 'approved'): ?>
+                                                <form method="post">
+                                                    <input type="hidden" name="testimonial_id" value="<?php echo htmlspecialchars($id); ?>">
+                                                    <button type="submit" name="approve_testimonial" class="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm">
+                                                        <i class="fas fa-check mr-2"></i>Approve
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                            <?php if ($isVisible): ?>
+                                                <form method="post">
+                                                    <input type="hidden" name="testimonial_id" value="<?php echo htmlspecialchars($id); ?>">
+                                                    <button type="submit" name="hide_testimonial" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm">
+                                                        <i class="fas fa-eye-slash mr-2"></i>Hide
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                            <button type="button" onclick="openTestimonialEditModal('<?php echo htmlspecialchars($id); ?>')" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm">
+                                                <i class="fas fa-edit mr-2"></i>Edit
+                                            </button>
+                                            <button type="button" onclick="openTestimonialDeleteModal('<?php echo htmlspecialchars($id); ?>')" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm text-destructive">
+                                                <i class="fas fa-trash mr-2"></i>Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Edit Testimonial Modal -->
+                <div id="testimonial-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-card rounded-xl border border-border max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-xl font-heading font-bold text-foreground">Edit Testimonial</h2>
+                                <button type="button" onclick="closeTestimonialModal()" class="text-muted-foreground hover:text-foreground">
+                                    <i class="fas fa-times h-5 w-5"></i>
+                                </button>
+                            </div>
+
+                            <form id="testimonial-form" method="post" class="space-y-4">
+                                <input type="hidden" id="t-id" name="testimonial_id" value="">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Name</label>
+                                        <input id="t-name" type="text" name="t_name" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">(1-5)</label>
+                                        <input id="t-rating" type="number" min="1" max="5" name="t_rating" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Role (EN)</label>
+                                        <input id="t-role-en" type="text" name="t_role_en" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Role (AR)</label>
+                                        <input id="t-role-ar" type="text" dir="rtl" name="t_role_ar" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Company (EN)</label>
+                                        <input id="t-company-en" type="text" name="t_company_en" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Company (AR)</label>
+                                        <input id="t-company-ar" type="text" dir="rtl" name="t_company_ar" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Status</label>
+                                        <select id="t-status" name="t_status" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                            <option value="pending">Pending</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="rejected">Rejected</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-7">
+                                        <input id="t-visible" type="checkbox" name="t_visible" class="h-4 w-4 text-primary bg-background border-input rounded focus:ring-ring">
+                                        <label for="t-visible" class="text-sm text-foreground">Visible on homepage</label>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Message (EN)</label>
+                                        <textarea id="t-message-en" name="t_message_en" rows="4" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-foreground mb-2">Message (AR)</label>
+                                        <textarea id="t-message-ar" name="t_message_ar" dir="rtl" rows="4" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end gap-3 pt-2">
+                                    <button type="button" onclick="closeTestimonialModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
+                                    <button type="submit" name="edit_testimonial" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                        <i class="fas fa-save mr-2"></i>Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Testimonial Modal -->
+                <div id="testimonial-delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div class="bg-card rounded-xl border border-border max-w-md w-full">
+                        <div class="p-6">
+                            <h3 class="text-lg font-heading font-bold text-foreground mb-2">Delete Testimonial</h3>
+                            <p class="text-muted-foreground mb-6">Are you sure you want to delete <span id="testimonial-delete-name" class="font-medium text-foreground"></span>?</p>
+                            <form method="post">
+                                <input type="hidden" id="testimonial-delete-id" name="testimonial_id" value="">
+                                <div class="flex justify-end gap-3">
+                                    <button type="button" onclick="closeTestimonialDeleteModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
+                                    <button type="submit" name="delete_testimonial" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                        <i class="fas fa-trash mr-2"></i>Delete
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    const testimonialsData = <?php echo json_encode($t_items); ?>;
+
+                    function openTestimonialEditModal(id) {
+                        const t = testimonialsData?.[id];
+                        if (!t) return;
+                        document.getElementById('t-id').value = id;
+                        document.getElementById('t-name').value = t.name || '';
+                        document.getElementById('t-rating').value = t.rating ?? 5;
+                        document.getElementById('t-role-en').value = t.role_en || '';
+                        document.getElementById('t-role-ar').value = t.role_ar || '';
+                        document.getElementById('t-company-en').value = t.company_en || '';
+                        document.getElementById('t-company-ar').value = t.company_ar || '';
+                        document.getElementById('t-status').value = t.status || 'pending';
+                        document.getElementById('t-visible').checked = (t.visible === '1' || t.visible === 1 || t.visible === true);
+                        document.getElementById('t-message-en').value = t.message_en || '';
+                        document.getElementById('t-message-ar').value = t.message_ar || '';
+                        document.getElementById('testimonial-modal').classList.remove('hidden');
+                    }
+
+                    function closeTestimonialModal() {
+                        const m = document.getElementById('testimonial-modal');
+                        if (m) m.classList.add('hidden');
+                    }
+
+                    function openTestimonialDeleteModal(id) {
+                        const t = testimonialsData?.[id];
+                        if (!t) return;
+                        document.getElementById('testimonial-delete-id').value = id;
+                        document.getElementById('testimonial-delete-name').textContent = t.name || id;
+                        document.getElementById('testimonial-delete-modal').classList.remove('hidden');
+                    }
+
+                    function closeTestimonialDeleteModal() {
+                        const m = document.getElementById('testimonial-delete-modal');
+                        if (m) m.classList.add('hidden');
+                    }
+                </script>
+
+            <?php elseif ($current_page === 'careers'): ?>
+                <?php
+                $edit_slug = $_GET['edit'] ?? '';
+                $is_edit = is_string($edit_slug) && $edit_slug !== '' && isset($job_posts[$edit_slug]);
+                $job = $is_edit ? $job_posts[$edit_slug] : [
+                    'title' => '',
+                    'title_en' => '',
+                    'title_ar' => '',
+                    'department' => '',
+                    'location' => '',
+                    'type' => '',
+                    'summary' => '',
+                    'summary_en' => '',
+                    'summary_ar' => '',
+                    'description' => '',
+                    'description_en' => '',
+                    'description_ar' => '',
+                    'responsibilities' => [],
+                    'responsibilities_en' => [],
+                    'responsibilities_ar' => [],
+                    'requirements' => [],
+                    'requirements_en' => [],
+                    'requirements_ar' => [],
+                    'visible' => '1',
+                    'posted_at' => date('Y-m-d'),
+                ];
+
+                $jobs_total = is_array($job_posts ?? null) ? count($job_posts) : 0;
+                $jobs_visible = is_array($job_posts ?? null) ? count(array_filter($job_posts, fn($j) => ($j['visible'] ?? '0') === '1' || ($j['visible'] ?? 0) === 1)) : 0;
+                ?>
+
+                <div class="space-y-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl lg:text-3xl font-heading font-bold text-foreground">Careers</h1>
+                            <p class="text-muted-foreground mt-1">Create and manage job posts shown on the public Careers page</p>
+                        </div>
+                        <button id="add-job-btn" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors gap-2 inline-flex items-center">
+                            <i class="fas fa-plus h-4 w-4"></i>
+                            New Job
+                        </button>
+                    </div>
+
+                    <!-- Add Job Modal -->
+                    <div id="add-job-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+                        <div class="bg-card rounded-xl border border-border max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                            <div class="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+                                <h3 id="modal-title" class="text-lg font-heading font-bold text-foreground">Add New Job</h3>
+                                <button id="close-modal-btn" class="text-muted-foreground hover:text-foreground transition-colors">
+                                    <i class="fas fa-times h-5 w-5"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="p-6">
+                                <form id="add-job-form" method="post" class="space-y-4">
+                                    <input type="hidden" id="edit-job-slug" name="job_slug" value="">
+                                    <input type="hidden" id="is-edit-mode" name="is_edit_mode" value="0">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Title (EN)</label>
+                                            <input type="text" name="job_title" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Title (AR)</label>
+                                            <input type="text" name="job_title_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Department (EN)</label>
+                                            <input type="text" name="department" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Department (AR)</label>
+                                            <input type="text" name="department_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Location (EN)</label>
+                                            <input type="text" name="location" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Location (AR)</label>
+                                            <input type="text" name="location_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Type (EN)</label>
+                                            <input type="text" name="type" placeholder="Full-time / Part-time / Contract" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Type (AR)</label>
+                                            <input type="text" name="type_ar" dir="rtl" placeholder="Two hours full / Two hours part / Contract" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Posted date</label>
+                                            <input type="date" name="posted_at" value="<?php echo date('Y-m-d'); ?>" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div class="flex items-center gap-2 pt-7">
+                                            <input id="job-visible" type="checkbox" name="visible" class="h-4 w-4 text-primary bg-background border-input rounded focus:ring-ring" checked>
+                                            <label for="job-visible" class="text-sm text-foreground">Visible on public page</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Summary (EN) (shown in list)</label>
+                                            <input type="text" name="summary" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Summary (AR) (shown in list)</label>
+                                            <input type="text" name="summary_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Description (EN)</label>
+                                            <textarea name="description" rows="5" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-foreground mb-2">Description (AR)</label>
+                                            <textarea name="description_ar" rows="5" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Responsibilities (EN) (one per line)</label>
+                                    <textarea name="responsibilities" rows="6" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Responsibilities (AR) (one per line)</label>
+                                    <textarea name="responsibilities_ar" rows="6" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Requirements (EN) (one per line)</label>
+                                    <textarea name="requirements" rows="6" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Requirements (AR) (one per line)</label>
+                                    <textarea name="requirements_ar" rows="6" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                                </div>
+                            </div>
+
+                                    <div class="flex justify-end gap-3">
+                                        <button type="button" id="cancel-modal-btn" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
+                                        <button type="submit" id="submit-btn" name="add_job" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                            <i class="fas fa-save mr-2"></i>Create Job
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-stats-grid grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="stats-card stats-card-total bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Total</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-primary"><?php echo $jobs_total; ?></p>
+                        </div>
+                        <div class="stats-card stats-card-completed bg-card p-4 cursor-default">
+                            <p class="text-sm text-muted-foreground">Visible</p>
+                            <p class="stats-value text-2xl font-heading font-bold mt-1 text-green-700"><?php echo $jobs_visible; ?></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-card rounded-xl border border-border p-6">
+                        <h3 class="text-lg font-heading font-bold text-foreground mb-4">Job Posts</h3>
+
+                        <?php if (empty($job_posts)): ?>
+                            <div class="text-sm text-muted-foreground">No job posts yet.</div>
+                        <?php else: ?>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-left text-muted-foreground">
+                                            <th class="py-2 pr-4">Title</th>
+                                            <th class="py-2 pr-4">Department</th>
+                                            <th class="py-2 pr-4">Location</th>
+                                            <th class="py-2 pr-4">Type</th>
+                                            <th class="py-2 pr-4">Visible</th>
+                                            <th class="py-2 pr-4">Posted</th>
+                                            <th class="py-2 pr-0 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-foreground">
+                                        <?php foreach ($job_posts as $slug => $j): ?>
+                                            <tr class="border-t border-border">
+                                                <td class="py-3 pr-4">
+                                                    <div class="font-medium"><?php echo htmlspecialchars($j['title'] ?? $slug); ?></div>
+                                                    <div class="text-xs text-muted-foreground break-all">Slug: <?php echo htmlspecialchars($slug); ?></div>
+                                                </td>
+                                                <td class="py-3 pr-4"><?php echo htmlspecialchars($j['department'] ?? ''); ?></td>
+                                                <td class="py-3 pr-4"><?php echo htmlspecialchars($j['location'] ?? ''); ?></td>
+                                                <td class="py-3 pr-4"><?php echo htmlspecialchars($j['type'] ?? ''); ?></td>
+                                                <td class="py-3 pr-4">
+                                                    <span class="text-xs px-2 py-1 rounded-full <?php echo (($j['visible'] ?? '0') === '1' || ($j['visible'] ?? 0) === 1) ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'; ?>">
+                                                        <?php echo (($j['visible'] ?? '0') === '1' || ($j['visible'] ?? 0) === 1) ? 'Yes' : 'No'; ?>
+                                                    </span>
+                                                </td>
+                                                <td class="py-3 pr-4"><?php echo htmlspecialchars($j['posted_at'] ?? ''); ?></td>
+                                                <td class="py-3 pr-0">
+                                                    <div class="flex items-center justify-end gap-2">
+                                                        <button type="button" class="edit-job-btn px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm" data-slug="<?php echo urlencode($slug); ?>">
+                                                            <i class="fas fa-edit mr-2"></i>Edit
+                                                        </button>
+                                                        <form method="post" onsubmit="return confirm('Delete this job post?');">
+                                                            <input type="hidden" name="job_slug" value="<?php echo htmlspecialchars($slug); ?>">
+                                                            <button type="submit" name="delete_job" class="px-3 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors text-sm text-destructive">
+                                                                <i class="fas fa-trash mr-2"></i>Delete
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -2226,141 +4414,137 @@ function updateTeamData($ceo_profile, $team_members) {
     
     <!-- Add/Edit Project Modal -->
     <div id="project-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-card rounded-xl border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-6">
+        <div class="bg-card border border-border modal-shell">
+            <div class="modal-header">
+                <div class="flex items-center justify-between">
                     <h2 id="modal-title" class="text-xl font-heading font-bold text-foreground">Add New Project</h2>
                     <button onclick="closeModal()" class="text-muted-foreground hover:text-foreground">
                         <i class="fas fa-times h-5 w-5"></i>
                     </button>
                 </div>
-                
-                <form id="project-form" method="post" enctype="multipart/form-data">
+            </div>
+            <form id="project-form" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
                     <input type="hidden" id="project-slug" name="project_slug">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label for="title" class="block text-sm font-medium text-foreground mb-2">Project Title</label>
-                            <input type="text" id="title" name="title" required 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Project Basics</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="title" class="block text-sm font-medium text-foreground mb-2">Project Title (EN)</label>
+                                <input type="text" id="title" name="title" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="title_ar" class="block text-sm font-medium text-foreground mb-2">Project Title (AR)</label>
+                                <input type="text" id="title_ar" name="title_ar" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
                         </div>
-                        <div>
-                            <label for="category" class="block text-sm font-medium text-foreground mb-2">Category</label>
-                            <select id="category" name="category" required 
-                                    class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                <option value="Residential">Residential</option>
-                                <option value="Commercial">Commercial</option>
-                                <option value="Industrial">Industrial</option>
-                                <option value="Infrastructure">Infrastructure</option>
-                                <option value="MEP">MEP</option>
-                            </select>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label for="category" class="block text-sm font-medium text-foreground mb-2">Category</label>
+                                <select id="category" name="category" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <option value="Residential">Residential</option>
+                                    <option value="Commercial">Commercial</option>
+                                    <option value="Industrial">Industrial</option>
+                                    <option value="Infrastructure">Infrastructure</option>
+                                    <option value="MEP">MEP</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="status" class="block text-sm font-medium text-foreground mb-2">Status</label>
+                                <select id="status" name="status" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <option value="completed">Completed</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="planning">Planning</option>
+                                    <option value="on-hold">On Hold</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="location" class="block text-sm font-medium text-foreground mb-2">Location</label>
+                                <input type="text" id="location" name="location" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="contract_value" class="block text-sm font-medium text-foreground mb-2">Contract Value</label>
+                                <input type="text" id="contract_value" name="contract_value" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="scope" class="block text-sm font-medium text-foreground mb-2">Scope of Work</label>
+                                <input type="text" id="scope" name="scope" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label for="status" class="block text-sm font-medium text-foreground mb-2">Status</label>
-                            <select id="status" name="status" required 
-                                    class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                <option value="completed">Completed</option>
-                                <option value="in-progress">In Progress</option>
-                                <option value="planning">Planning</option>
-                                <option value="on-hold">On Hold</option>
-                            </select>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Descriptions & Visibility</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="description" class="block text-sm font-medium text-foreground mb-2">Description (EN)</label>
+                                <textarea id="description" name="description" rows="4" required class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                            </div>
+                            <div>
+                                <label for="description_ar" class="block text-sm font-medium text-foreground mb-2">Description (AR)</label>
+                                <textarea id="description_ar" name="description_ar" rows="4" dir="rtl" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+                            </div>
                         </div>
-                        <div>
-                            <label for="location" class="block text-sm font-medium text-foreground mb-2">Location</label>
-                            <input type="text" id="location" name="location" required 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label for="contract_value" class="block text-sm font-medium text-foreground mb-2">Contract Value</label>
-                            <input type="text" id="contract_value" name="contract_value" required 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                        <div>
-                            <label for="scope" class="block text-sm font-medium text-foreground mb-2">Scope of Work</label>
-                            <input type="text" id="scope" name="scope" required 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="description" class="block text-sm font-medium text-foreground mb-2">Description</label>
-                        <textarea id="description" name="description" rows="4" required 
-                                  class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium text-foreground mb-2">Project Visibility</label>
-                        <div class="flex items-center space-x-3">
+                        <div class="visibility-row">
                             <div class="flex items-center">
-                                <input type="checkbox" id="visible" name="visible" value="1" checked
-                                       class="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
+                                <input type="checkbox" id="visible" name="visible" value="1" checked class="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
                                 <label for="visible" class="ml-2 text-sm text-foreground">
-                                    <i class="fas fa-eye mr-1"></i>
-                                    Publish to Website
+                                    <i class="fas fa-eye mr-1"></i> Publish to Website
                                 </label>
                             </div>
-                            <span class="text-xs text-muted-foreground">
-                                (Uncheck to hide from public website)
-                            </span>
+                            <span class="text-xs text-muted-foreground">(Uncheck to hide from public website)</span>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label for="project_image" class="block text-sm font-medium text-foreground mb-2">Main Project Image</label>
-                            <input type="file" id="project_image" name="project_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Project Images</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="project_image" class="block text-sm font-medium text-foreground mb-2">Main Project Image</label>
+                                <input type="file" id="project_image" name="project_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="construction_image" class="block text-sm font-medium text-foreground mb-2">Construction Image</label>
+                                <input type="file" id="construction_image" name="construction_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
                         </div>
-                        <div>
-                            <label for="construction_image" class="block text-sm font-medium text-foreground mb-2">Construction Image</label>
-                            <input type="file" id="construction_image" name="construction_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div>
-                            <label for="foundation_image" class="block text-sm font-medium text-foreground mb-2">Foundation Image</label>
-                            <input type="file" id="foundation_image" name="foundation_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                        <div>
-                            <label for="interior_image" class="block text-sm font-medium text-foreground mb-2">Interior Image</label>
-                            <input type="file" id="interior_image" name="interior_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                        <div>
-                            <label for="architecture_image" class="block text-sm font-medium text-foreground mb-2">Architecture Image</label>
-                            <input type="file" id="architecture_image" name="architecture_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                        <div>
-                            <label for="blueprint_image" class="block text-sm font-medium text-foreground mb-2">Blueprint Review Image</label>
-                            <input type="file" id="blueprint_image" name="blueprint_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                        <div>
-                            <label for="quality_control_image" class="block text-sm font-medium text-foreground mb-2">Quality Control Image</label>
-                            <input type="file" id="quality_control_image" name="quality_control_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                        </div>
-                        <div>
-                            <label for="system_installation_image" class="block text-sm font-medium text-foreground mb-2">System Installation Image</label>
-                            <input type="file" id="system_installation_image" name="system_installation_image" accept="image/*" 
-                                   class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="foundation_image" class="block text-sm font-medium text-foreground mb-2">Foundation Image</label>
+                                <input type="file" id="foundation_image" name="foundation_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="interior_image" class="block text-sm font-medium text-foreground mb-2">Interior Image</label>
+                                <input type="file" id="interior_image" name="interior_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="architecture_image" class="block text-sm font-medium text-foreground mb-2">Architecture Image</label>
+                                <input type="file" id="architecture_image" name="architecture_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="blueprint_image" class="block text-sm font-medium text-foreground mb-2">Blueprint Review Image</label>
+                                <input type="file" id="blueprint_image" name="blueprint_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="quality_control_image" class="block text-sm font-medium text-foreground mb-2">Quality Control Image</label>
+                                <input type="file" id="quality_control_image" name="quality_control_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label for="system_installation_image" class="block text-sm font-medium text-foreground mb-2">System Installation Image</label>
+                                <input type="file" id="system_installation_image" name="system_installation_image" accept="image/*" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="mb-6">
+
+                    <div class="form-section mb-0">
+                        <h3 class="form-section-title">Contract File</h3>
                         <label for="contract_pdf" class="block text-sm font-medium text-foreground mb-2">Project Contract PDF</label>
-                        <input type="file" id="contract_pdf" name="contract_pdf" accept=".pdf,application/pdf" 
-                               class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                        <input type="file" id="contract_pdf" name="contract_pdf" accept=".pdf,application/pdf" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
                         <p class="text-xs text-muted-foreground mt-1">Upload project contract PDF (optional)</p>
                         <div id="current-pdf" class="mt-2 hidden">
                             <div class="flex items-center justify-between mb-2">
@@ -2370,29 +4554,25 @@ function updateTeamData($ceo_profile, $team_members) {
                                         <i class="fas fa-file-pdf"></i>
                                         <span id="current-pdf-name"></span>
                                     </a>
-                                    <button type="button" id="delete-pdf-btn" onclick="showDeletePDFModal()" 
-                                            class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors inline-flex items-center gap-1">
-                                        <i class="fas fa-trash h-3 w-3"></i>
-                                        Delete
+                                    <button type="button" id="delete-pdf-btn" onclick="showDeletePDFModal()" class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors inline-flex items-center gap-1">
+                                        <i class="fas fa-trash h-3 w-3"></i> Delete
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeModal()" 
-                                class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">
-                            Cancel
-                        </button>
-                        <button type="submit" name="<?php echo !empty($_POST['project_slug']) || !empty($_GET['edit']) ? 'edit_project' : 'add_project'; ?>" 
-                                class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                            <i class="fas fa-save mr-2"></i>
-                            <?php echo !empty($_POST['project_slug']) || !empty($_GET['edit']) ? 'Update Project' : 'Create Project'; ?>
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" name="<?php echo !empty($_POST['project_slug']) || !empty($_GET['edit']) ? 'edit_project' : 'add_project'; ?>" class="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                        <i class="fas fa-save mr-2"></i>
+                        <?php echo !empty($_POST['project_slug']) || !empty($_GET['edit']) ? 'Update Project' : 'Create Project'; ?>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
     
@@ -2647,6 +4827,18 @@ function updateTeamData($ceo_profile, $team_members) {
                 else if (page === 'team' && href.includes('page=team')) {
                     item.classList.add('active');
                 }
+                // Check for careers page
+                else if (page === 'careers' && href.includes('page=careers')) {
+                    item.classList.add('active');
+                }
+                // Check for certifications page
+                else if (page === 'certifications' && href.includes('page=certifications')) {
+                    item.classList.add('active');
+                }
+                // Check for testimonials page
+                else if (page === 'testimonials' && href.includes('page=testimonials')) {
+                    item.classList.add('active');
+                }
                 // Check for dashboard (no page parameter)
                 else if (!page && href === 'projects-new.php') {
                     item.classList.add('active');
@@ -2676,12 +4868,14 @@ function updateTeamData($ceo_profile, $team_members) {
                 document.getElementById('modal-title').textContent = 'Edit Project';
                 document.getElementById('project-slug').value = slug;
                 document.getElementById('title').value = project.title;
+                document.getElementById('title_ar').value = project.title_ar || '';
                 document.getElementById('category').value = project.category;
                 document.getElementById('status').value = project.status;
                 document.getElementById('location').value = project.location;
                 document.getElementById('contract_value').value = project.contract_value;
                 document.getElementById('scope').value = project.scope;
                 document.getElementById('description').value = project.description;
+                document.getElementById('description_ar').value = project.description_ar || '';
                 
                 // Handle visibility checkbox
                 const visibleCheckbox = document.getElementById('visible');
@@ -3248,12 +5442,20 @@ function updateTeamData($ceo_profile, $team_members) {
                     'Session Expired',
                     'Your session has expired due to inactivity. Please login again.'
                 );
+                // Clear URL parameters to prevent modal from showing again
+                const params = new URLSearchParams(window.location.search);
+                params.delete('timeout');
+                window.history.replaceState({}, '', 'projects-new.php' + (params.toString() ? '?' + params.toString() : ''));
             }
             if (urlParams.get('security') === '1') {
                 showSessionMessageModal(
                     'Security Alert',
                     'Security alert: Your session has been terminated for security reasons. Please login again.'
                 );
+                // Clear URL parameters to prevent modal from showing again
+                const params = new URLSearchParams(window.location.search);
+                params.delete('security');
+                window.history.replaceState({}, '', 'projects-new.php' + (params.toString() ? '?' + params.toString() : ''));
             }
         });
 
@@ -3371,10 +5573,307 @@ function updateTeamData($ceo_profile, $team_members) {
                         window.location.href = 'projects-new.php?security=1';
                     }
                 })
-                .catch(error => {
-                    console.error('Session check failed:', error);
+                .catch(error => {})
+                .catch(error => console.error('Session check error:', error));
+            }
+        });
+
+        // Add Job Modal functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const addJobBtn = document.getElementById('add-job-btn');
+            const addJobModal = document.getElementById('add-job-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const cancelModalBtn = document.getElementById('cancel-modal-btn');
+            const addJobForm = document.getElementById('add-job-form');
+            const modalTitle = document.getElementById('modal-title');
+            const submitBtn = document.getElementById('submit-btn');
+            const editJobSlug = document.getElementById('edit-job-slug');
+            const isEditMode = document.getElementById('is-edit-mode');
+
+            // Job data for editing
+            const jobData = <?php echo json_encode($job_posts ?? []); ?>;
+
+            // Open modal for Add
+            if (addJobBtn) {
+                addJobBtn.addEventListener('click', function() {
+                    resetModal();
+                    modalTitle.textContent = 'Add New Job';
+                    submitBtn.name = 'add_job';
+                    submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Create Job';
+                    isEditMode.value = '0';
+                    openModal();
                 });
             }
+
+            // Open modal for Edit
+            document.addEventListener('click', function(event) {
+                if (event.target.closest('.edit-job-btn')) {
+                    const editBtn = event.target.closest('.edit-job-btn');
+                    const slug = editBtn.dataset.slug;
+                    const job = jobData[slug];
+                    
+                    if (job) {
+                        populateModal(job, slug);
+                        modalTitle.textContent = 'Edit Job';
+                        submitBtn.name = 'edit_job';
+                        submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Update Job';
+                        isEditMode.value = '1';
+                        openModal();
+                    }
+                }
+            });
+
+            function openModal() {
+                addJobModal.classList.remove('hidden');
+                addJobModal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+            }
+
+            // Close modal functions
+            function closeModal() {
+                addJobModal.classList.add('hidden');
+                addJobModal.classList.remove('flex');
+                document.body.style.overflow = 'auto';
+                resetModal();
+            }
+
+            function resetModal() {
+                if (addJobForm) {
+                    addJobForm.reset();
+                }
+                editJobSlug.value = '';
+                isEditMode.value = '0';
+            }
+
+            function populateModal(job, slug) {
+                editJobSlug.value = slug;
+                
+                // Populate form fields with job data
+                const fields = {
+                    'job_title': job.title_en || job.title || '',
+                    'job_title_ar': job.title_ar || '',
+                    'department': job.department_en || job.department || '',
+                    'department_ar': job.department_ar || '',
+                    'location': job.location_en || job.location || '',
+                    'location_ar': job.location_ar || '',
+                    'type': job.type_en || job.type || '',
+                    'type_ar': job.type_ar || '',
+                    'posted_at': job.posted_at || '',
+                    'summary': job.summary_en || job.summary || '',
+                    'summary_ar': job.summary_ar || '',
+                    'description': job.description_en || job.description || '',
+                    'description_ar': job.description_ar || '',
+                    'responsibilities': Array.isArray(job.responsibilities_en || job.responsibilities) ? (job.responsibilities_en || job.responsibilities).join('\n') : '',
+                    'responsibilities_ar': Array.isArray(job.responsibilities_ar || []) ? (job.responsibilities_ar || []).join('\n') : '',
+                    'requirements': Array.isArray(job.requirements_en || job.requirements) ? (job.requirements_en || job.requirements).join('\n') : '',
+                    'requirements_ar': Array.isArray(job.requirements_ar || []) ? (job.requirements_ar || []).join('\n') : ''
+                };
+
+                // Set field values
+                Object.keys(fields).forEach(fieldName => {
+                    const field = addJobForm.elements[fieldName];
+                    if (field) {
+                        field.value = fields[fieldName];
+                    }
+                });
+
+                // Set checkbox
+                const visibleCheckbox = addJobForm.elements['visible'];
+                if (visibleCheckbox) {
+                    visibleCheckbox.checked = (job.visible === '1' || job.visible === 1);
+                }
+            }
+
+            // Close modal on X button click
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', closeModal);
+            }
+
+            // Close modal on Cancel button click
+            if (cancelModalBtn) {
+                cancelModalBtn.addEventListener('click', closeModal);
+            }
+
+            // Close modal on outside click
+            addJobModal.addEventListener('click', function(event) {
+                if (event.target === addJobModal) {
+                    closeModal();
+                }
+            });
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && !addJobModal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+        });
+
+        // Inactivity Timeout Notification System
+        let inactivityTimer;
+        let countdownTimer;
+        let countdownInterval;
+        let warningShown = false;
+        
+        const INACTIVITY_LIMIT = 18 * 60 * 1000; // 18 minutes (show warning 2 minutes before timeout)
+        const COUNTDOWN_DURATION = 60 * 1000; // 1 minute countdown
+        const SESSION_TIMEOUT = 20 * 60 * 1000; // 20 minutes total session timeout
+        
+        // Create the inactivity warning dialog
+        const warningDialog = document.createElement('div');
+        warningDialog.id = 'inactivity-warning';
+        warningDialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden';
+        warningDialog.innerHTML = `
+            <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4 transform transition-all">
+                <div class="text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Are you still there?</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Your session is about to expire due to inactivity. You will be automatically logged out in:
+                    </p>
+                    <div class="text-3xl font-bold text-red-600 mb-6" id="countdown-timer">1:00</div>
+                    <div class="flex justify-center">
+                        <button id="stay-logged-in" class="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-check mr-2"></i>Yes, I'm here
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(warningDialog);
+        
+        // Prevent activity events when interacting with the dialog
+        warningDialog.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+        });
+        
+        warningDialog.addEventListener('mousemove', (e) => {
+            e.stopPropagation();
+        });
+        
+        warningDialog.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        warningDialog.addEventListener('keypress', (e) => {
+            e.stopPropagation();
+        });
+        
+        // Function to reset inactivity timer
+        function resetInactivityTimer() {
+            // Don't reset if warning dialog is visible (user is interacting with it)
+            if (warningShown && !warningDialog.classList.contains('hidden')) {
+                return;
+            }
+            
+            clearTimeout(inactivityTimer);
+            clearTimeout(countdownTimer);
+            clearInterval(countdownInterval);
+            warningShown = false;
+            
+            // Hide warning dialog if it's showing
+            warningDialog.classList.add('hidden');
+            
+            // Start new timer
+            inactivityTimer = setTimeout(showWarning, window.INACTIVITY_LIMIT || INACTIVITY_LIMIT);
+        }
+        
+        // Function to show warning dialog
+        function showWarning() {
+            warningShown = true;
+            warningDialog.classList.remove('hidden');
+            
+            let timeLeft = (window.COUNTDOWN_DURATION || COUNTDOWN_DURATION) / 1000; // Convert to seconds
+            const countdownElement = document.getElementById('countdown-timer');
+            
+            // Update countdown display
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    logout();
+                }
+            }, 1000);
+            
+            // Auto logout after countdown
+            countdownTimer = setTimeout(logout, window.COUNTDOWN_DURATION || COUNTDOWN_DURATION);
+        }
+        
+        // Function to logout
+        function logout() {
+            // Destroy session on server side first
+            fetch('projects-new.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'force_logout=1'
+            }).then(() => {
+                // Redirect to login page after session is destroyed
+                window.location.href = 'projects-new.php?timeout=1';
+            }).catch(() => {
+                // Fallback redirect even if fetch fails
+                window.location.href = 'projects-new.php?timeout=1';
+            });
+        }
+        
+        // Event listeners for dialog buttons
+        document.getElementById('stay-logged-in').addEventListener('click', () => {
+            // Clear all timers first
+            clearTimeout(inactivityTimer);
+            clearTimeout(countdownTimer);
+            clearInterval(countdownInterval);
+            
+            // Hide dialog immediately
+            warningDialog.classList.add('hidden');
+            warningShown = false;
+            
+            // Start fresh timer
+            inactivityTimer = setTimeout(showWarning, window.INACTIVITY_LIMIT || INACTIVITY_LIMIT);
+            
+            // Update server-side last activity
+            fetch('projects-new.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'update_activity=1'
+            }).catch(err => console.log('Activity update failed:', err));
+        });
+        
+        // Track user activity
+        const activityEvents = [
+            'mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'
+        ];
+        
+        activityEvents.forEach(event => {
+            document.addEventListener(event, resetInactivityTimer, true);
+        });
+        
+        // Initialize timer on page load
+        resetInactivityTimer();
+        
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Page is hidden, don't reset timer
+            } else {
+                // Page is visible, reset timer
+                resetInactivityTimer();
+            }
+        });
+        
+        // Handle window focus/blur
+        window.addEventListener('focus', resetInactivityTimer);
+        window.addEventListener('blur', () => {
+            // Don't reset timer when window loses focus
         });
     </script>
 </body>

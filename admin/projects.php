@@ -4,6 +4,11 @@
  * User-friendly interface for managing projects without coding
  */
 
+// Legacy admin page is superseded by projects-new.php.
+// Redirect to avoid maintaining two separate admin security surfaces.
+header('Location: projects-new.php', true, 302);
+exit;
+
 // Start session
 session_start();
 

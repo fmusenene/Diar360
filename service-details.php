@@ -9,6 +9,24 @@ require_once __DIR__ . '/include/header.php';
 // Load language functions
 require_once __DIR__ . '/functions/language.php';
 
+// Helper function to get translated service field
+function getServiceField($service, $field) {
+    // Get current language
+    $currentLang = getCurrentLanguage();
+    
+    // If Arabic language and Arabic field exists, use it
+    if ($currentLang === 'ar' && isset($service[$field . '_ar'])) {
+        return $service[$field . '_ar'];
+    }
+    
+    // Otherwise use English field
+    if (isset($service[$field])) {
+        return $service[$field];
+    }
+    
+    return '';
+}
+
 // Service slug (e.g. service-details.php?service=civil-and-concrete-work)
 $serviceSlug = isset($_GET['service']) ? strtolower(trim((string)$_GET['service'])) : '';
 if ($serviceSlug === '') {
@@ -20,13 +38,21 @@ if ($serviceSlug === '') {
 $services = [
     'civil-and-concrete-work' => [
         'title' => 'CIVIL AND CONCRETE WORK',
+        'title_ar' => 'أعمال مدنية وإسمنتية',
         'subtitle' => 'CIVIL AND CONCRETE WORK',
+        'subtitle_ar' => 'أعمال مدنية وإسمنتية',
         'icon' => 'bi-building',
         'intro' => [
             'We specialize in robust civil and concrete construction solutions for infrastructure and building projects.',
             'Our team of skilled engineers and project managers ensures precision and quality while adhering to safety regulations.',
             'We collaborate closely with clients to understand their project goals, timelines, and budget constraints, providing tailored solutions and transparent communication throughout the project lifecycle.',
             'At DYAR 360 we deliver superior civil and concrete construction solutions through innovation, expertise, and a commitment to excellence, contributing to the development of sustainable and resilient communities.',
+        ],
+        'intro_ar' => [
+            'نحن متخصصون في تقديم حلول إنشائية مدنية وإسمنتية قوية للبنية التحتية ومشاريع البناء.',
+            'يتأكد فريقنا من المهندسين والقادة المشروعين المهرة من الدقة والجودة مع الالتزام بقواعد السلامة.',
+            'نعمل عن كثب مع العملاء لفهم أهداف المشروع وأجندها ومحددات الميزانية، وتقديم حلول مخصصة وتواصل شفاف على مدار دورة حياة المشروع.',
+            'في ديار 360 نقدم حلولاً إنشائية مدنية وإسمنتية متفوقة من خلال الابتكار والخبرة والالتزام بالتميز، مما يساهم في تطوير مجتمعات مستدامة ومرنة.',
         ],
     ],
     'mep' => [
@@ -88,12 +114,12 @@ $service = $services[$serviceSlug];
     <!-- Page Title -->
     <div class="page-title light-background">
       <div class="container d-lg-flex justify-content-between align-items-center">
-        <h1 class="mb-2 mb-lg-0"><?php echo e($service['title']); ?></h1>
+        <h1 class="mb-2 mb-lg-0"><?php echo e(getServiceField($service, 'title')); ?></h1>
         <nav class="breadcrumbs">
           <ol>
             <li><a href="index.php"><?php echo t('breadcrumb_home'); ?></a></li>
             <li><a href="services.php"><?php echo t('nav_services'); ?></a></li>
-            <li class="current"><?php echo e($service['title']); ?></li>
+            <li class="current"><?php echo e(getServiceField($service, 'title')); ?></li>
           </ol>
         </nav>
       </div>
@@ -112,7 +138,7 @@ $service = $services[$serviceSlug];
                 <div class="service-icon">
                   <i class="bi <?php echo e($service['icon']); ?>"></i>
                 </div>
-                <h3><?php echo e($service['title']); ?></h3>
+                <h3><?php echo e(getServiceField($service, 'title')); ?></h3>
                 <p><?php echo t('company_description'); ?></p>
                 <div class="service-stats">
                   <div class="stat-item">
@@ -189,11 +215,21 @@ $service = $services[$serviceSlug];
               </div>
 
               <div class="content-section" data-aos="fade-up" data-aos-delay="200">
-                <h1><?php echo e($service['title']); ?></h1>
+                <h1><?php echo e(getServiceField($service, 'title')); ?></h1>
                 <div class="content-intro">
-                  <?php foreach ($service['intro'] as $p): ?>
-                    <p><?php echo e($p); ?></p>
-                  <?php endforeach; ?>
+                  <?php 
+                  $introField = getServiceField($service, 'intro');
+                  if (is_array($introField)) {
+                      foreach ($introField as $p): ?>
+                        <p><?php echo e($p); ?></p>
+                      <?php endforeach;
+                  } else {
+                      // Fallback to English intro
+                      foreach ($service['intro'] as $p): ?>
+                        <p><?php echo e($p); ?></p>
+                      <?php endforeach;
+                  }
+                  ?>
                 </div>
               </div>
 

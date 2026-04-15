@@ -280,7 +280,7 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     
     /* Add clear gap between Twitter (X) icon and language switcher in RTL */
     body[dir="rtl"] .social-links > .language-switcher {
-      margin-left: 3rem !important;
+      margin-left: 4.5rem !important;
     }
     
     /* RTL Support for Arabic */
@@ -395,16 +395,7 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
             <li><a href="services.php" class="<?php echo isActive('services'); ?>"><?php echo t('nav_services'); ?></a></li>
             <li><a href="projects.php" class="<?php echo isActive('projects'); ?>"><?php echo t('nav_projects'); ?></a></li>
             <li><a href="team.php" class="<?php echo isActive('team'); ?>"><?php echo t('nav_team'); ?></a></li>
-            <li class="dropdown"><a href="#"><span><?php echo t('nav_more_pages'); ?></span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
-              <ul>
-                <li><a href="service-details.php"><?php echo t('nav_service_details'); ?></a></li>
-                <li><a href="project-details.php"><?php echo t('nav_project_details'); ?></a></li>
-                <li><a href="quote.php"><?php echo t('nav_quote'); ?></a></li>
-                <li><a href="terms.php"><?php echo t('nav_terms'); ?></a></li>
-                <li><a href="privacy.php"><?php echo t('nav_privacy'); ?></a></li>
-                <li><a href="404.php">404</a></li>
-              </ul>
-            </li>
+            <li><a href="careers.php" class="<?php echo isActive('careers'); ?>"><?php echo t('nav_careers'); ?></a></li>
             <li><a href="contact.php" class="<?php echo isActive('contact'); ?>"><?php echo t('nav_contact'); ?></a></li>
           </ul>
           <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>

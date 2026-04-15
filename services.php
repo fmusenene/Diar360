@@ -132,14 +132,14 @@ require_once __DIR__ . '/functions/language.php';
         <div class="row mt-5">
           <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">
             <div class="service-image-block">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp" alt="Construction Services" class="img-fluid">
+              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp" alt="<?php echo t('construction_services'); ?>" class="img-fluid">
             </div>
           </div>
 
           <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
             <div class="service-list-block">
-              <h3>DIAR 360 KNOW HOW FOR ALL YOUR PROJECTS</h3>
-              <p>Our comprehensive approach ensures perfect solutions tailored to client needs with innovative design, efficient installation, and skilled contracting.</p>
+              <h3><?php echo t('diar_360_know_how'); ?></h3>
+              <p><?php echo t('comprehensive_approach'); ?></p>
 
               <div class="service-list">
                 <div class="service-list-item" data-aos="fade-up" data-aos-delay="100">
@@ -147,8 +147,8 @@ require_once __DIR__ . '/functions/language.php';
                     <i class="bi bi-lightbulb"></i>
                   </div>
                   <div class="service-list-content">
-                    <h4>Innovative Design</h4>
-                    <p>Our in-house technical expertise ensures perfect solutions tailored to client needs.</p>
+                    <h4><?php echo t('innovative_design'); ?></h4>
+                    <p><?php echo t('innovative_design_desc'); ?></p>
                   </div>
                 </div><!-- End Service List Item -->
 
@@ -157,8 +157,8 @@ require_once __DIR__ . '/functions/language.php';
                     <i class="bi bi-speedometer2"></i>
                   </div>
                   <div class="service-list-content">
-                    <h4>Efficient Installation</h4>
-                    <p>Our teams ensure swift and precise project execution.</p>
+                    <h4><?php echo t('efficient_installation'); ?></h4>
+                    <p><?php echo t('efficient_installation_desc'); ?></p>
                   </div>
                 </div><!-- End Service List Item -->
 
@@ -167,8 +167,8 @@ require_once __DIR__ . '/functions/language.php';
                     <i class="bi bi-tools"></i>
                   </div>
                   <div class="service-list-content">
-                    <h4>Skilled Contracting</h4>
-                    <p>We utilize state-of-the-art equipment and technologies to meet performance standards.</p>
+                    <h4><?php echo t('skilled_contracting'); ?></h4>
+                    <p><?php echo t('skilled_contracting_desc'); ?></p>
                   </div>
                 </div><!-- End Service List Item -->
               </div>
@@ -177,9 +177,9 @@ require_once __DIR__ . '/functions/language.php';
         </div>
 
         <div class="cta-container text-center mt-5" data-aos="fade-up" data-aos-delay="300">
-          <h3>Ready to Start Your Construction Project?</h3>
-          <p>Contact DIAR 360 for customized services and expert solutions for all your construction needs.</p>
-          <a href="quote.php" class="btn btn-cta">Get In Touch</a>
+          <h3><?php echo t('ready_to_start'); ?></h3>
+          <p><?php echo t('contact_diar_360'); ?></p>
+          <a href="quote.php" class="btn btn-cta"><?php echo t('get_in_touch'); ?></a>
         </div>
 
       </div>

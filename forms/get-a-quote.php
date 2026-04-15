@@ -21,6 +21,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (function_exists('diar_is_same_origin_request') && !diar_is_same_origin_request()) {
+    http_response_code(403);
+    echo 'Invalid request origin.';
+    exit;
+}
+
+$now = time();
+$lastSubmit = (int)($_SESSION['last_quote_submit'] ?? 0);
+if ($lastSubmit && ($now - $lastSubmit) < 20) {
+    echo 'Please wait a moment before sending another request.';
+    exit;
+}
+
 // Helper to safely get POST values
 function get_quote_post($key, $default = '') {
     return isset($_POST[$key]) ? trim($_POST[$key]) : $default;
@@ -34,6 +51,10 @@ $timeline = get_quote_post('timeline');
 $budget   = get_quote_post('budget');
 $message  = get_quote_post('message');
 
+$stripHeaderBreaks = static function (string $value): string {
+    return trim(str_replace(["\r", "\n"], ' ', $value));
+};
+
 // Basic validation
 if ($name === '' || $email === '' || $phone === '' || $message === '') {
     echo 'Please fill in all required fields.';
@@ -42,6 +63,18 @@ if ($name === '' || $email === '' || $phone === '' || $message === '') {
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo 'Please enter a valid email address.';
+    exit;
+}
+
+$name = $stripHeaderBreaks($name);
+$email = $stripHeaderBreaks($email);
+$phone = $stripHeaderBreaks($phone);
+$subjectSafeType = $stripHeaderBreaks($type);
+$timeline = $stripHeaderBreaks($timeline);
+$budget = $stripHeaderBreaks($budget);
+
+if (strlen($message) > 5000) {
+    echo 'Message is too long.';
     exit;
 }
 
@@ -55,8 +88,8 @@ $adminLines[] = 'Name:  ' . $name;
 $adminLines[] = 'Email: ' . $email;
 $adminLines[] = 'Phone: ' . $phone;
 
-if ($type !== '') {
-    $adminLines[] = 'Project Type: ' . $type;
+if ($subjectSafeType !== '') {
+    $adminLines[] = 'Project Type: ' . $subjectSafeType;
 }
 if ($timeline !== '') {
     $adminLines[] = 'Project Timeline: ' . $timeline;
@@ -92,8 +125,8 @@ $userLines[] = 'Thank you for contacting DIAR 360. We have received your quote r
 $userLines[] = '';
 $userLines[] = 'Summary of your request:';
 $userLines[] = 'Phone: ' . $phone;
-if ($type !== '') {
-    $userLines[] = 'Project Type: ' . $type;
+if ($subjectSafeType !== '') {
+    $userLines[] = 'Project Type: ' . $subjectSafeType;
 }
 if ($timeline !== '') {
     $userLines[] = 'Project Timeline: ' . $timeline;
@@ -113,7 +146,7 @@ $userLines[] = '';
 $userLines[] = 'هذا ملخص لطلبك كما وردنا:';
 $userLines[] = 'رقم الهاتف: ' . $phone;
 if ($type !== '') {
-    $userLines[] = 'نوع المشروع: ' . $type;
+    $userLines[] = 'نوع المشروع: ' . $subjectSafeType;
 }
 if ($timeline !== '') {
     $userLines[] = 'المدة المتوقعة للمشروع: ' . $timeline;
@@ -143,6 +176,8 @@ $userHeadersString = implode("\r\n", $userHeaders);
 // We try to send, but even if it fails we still return "OK" so the UI shows success.
 @mail($receiving_email_address, $adminSubject, $adminBody, $adminHeadersString);
 @mail($email, $userSubject, $userBody, $userHeadersString);
+
+$_SESSION['last_quote_submit'] = $now;
 
 // "OK" is what validate.js expects for a successful submission
 echo 'OK';

@@ -32,7 +32,7 @@ define('DEFAULT_LANGUAGE', 'en');
 define('SOCIAL_TWITTER', '#');
 define('SOCIAL_FACEBOOK', '#');
 define('SOCIAL_INSTAGRAM', '#');
-define('SOCIAL_LINKEDIN', '#');
+define('SOCIAL_LINKEDIN', 'https://www.linkedin.com/company/113092400/admin/dashboard/');
 define('SOCIAL_YOUTUBE', '#');
 
 // Paths

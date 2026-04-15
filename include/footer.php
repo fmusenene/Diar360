@@ -36,10 +36,10 @@ $company_address = isset($site_settings['company_address']) ? $site_settings['co
           </a>
           <p><?php echo t('company_description'); ?></p>
           <div class="social-links d-flex mt-4">
-            <a href="<?php echo e(SOCIAL_TWITTER); ?>"><i class="bi bi-twitter-x"></i></a>
-            <a href="<?php echo e(SOCIAL_FACEBOOK); ?>"><i class="bi bi-facebook"></i></a>
-            <a href="<?php echo e(SOCIAL_INSTAGRAM); ?>"><i class="bi bi-instagram"></i></a>
-            <a href="<?php echo e(SOCIAL_LINKEDIN); ?>"><i class="bi bi-linkedin"></i></a>
+            <a href="<?php echo e(SOCIAL_TWITTER); ?>" target="_blank" rel="noopener noreferrer"><i class="bi bi-twitter-x"></i></a>
+            <a href="<?php echo e(SOCIAL_FACEBOOK); ?>" target="_blank" rel="noopener noreferrer"><i class="bi bi-facebook"></i></a>
+            <a href="<?php echo e(SOCIAL_INSTAGRAM); ?>" target="_blank" rel="noopener noreferrer"><i class="bi bi-instagram"></i></a>
+            <a href="<?php echo e(SOCIAL_LINKEDIN); ?>" target="_blank" rel="noopener noreferrer"><i class="bi bi-linkedin"></i></a>
           </div>
         </div>
 

@@ -147,12 +147,116 @@ function getGet($key, $default = '') {
 }
 
 /**
- * Get asset URL
+ * Get asset URL with filemtime cache-busting (fresh after uploads/edits, long-cache friendly).
  */
 function asset($path) {
-    // Remove leading slash if present
-    $path = ltrim($path, '/');
-    return ASSETS_PATH . '/' . $path;
+    static $cache = [];
+
+    $path = ltrim(str_replace('\\', '/', (string) $path), '/');
+    if ($path === '') {
+        return ASSETS_PATH;
+    }
+    if (isset($cache[$path])) {
+        return $cache[$path];
+    }
+
+    $url = ASSETS_PATH . '/' . $path;
+    if (defined('ROOT_PATH')) {
+        $fullPath = ROOT_PATH . '/assets/' . $path;
+        if (is_file($fullPath)) {
+            $url .= '?v=' . filemtime($fullPath);
+        }
+    }
+
+    $cache[$path] = $url;
+    return $url;
+}
+
+/**
+ * Image under assets/img/ (e.g. "construction/about1.webp" or "team/photo.webp").
+ */
+function asset_img($pathWithinImg) {
+    return asset('img/' . ltrim(str_replace('\\', '/', (string) $pathWithinImg), '/'));
+}
+
+/**
+ * Whether a team contact field has a real value (not blank/placeholder).
+ */
+function team_contact_is_meaningful($value) {
+    $v = trim((string) $value);
+    if ($v === '' || $v === '#' || $v === '-' || strcasecmp($v, 'n/a') === 0) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Resolve email / phone / linkedin for compact card overlay (single source: member fields, with legacy quick_contact fallback).
+ */
+function team_member_resolved_contacts(array $member) {
+    $email = trim((string) ($member['email'] ?? ''));
+    $phone = trim((string) ($member['phone'] ?? ''));
+    $linkedin = trim((string) ($member['socials']['linkedin'] ?? ''));
+    $qc = is_array($member['quick_contact'] ?? null) ? $member['quick_contact'] : [];
+
+    $qcEmail = trim((string) ($qc['email'] ?? ''));
+    $qcPhone = trim((string) ($qc['phone'] ?? ''));
+    $qcLinkedin = trim((string) ($qc['linkedin'] ?? ''));
+
+    // Primary fields win so clearing phone/email in admin removes icons immediately (legacy quick_contact ignored when primary is empty).
+    $resolvedEmail = team_contact_is_meaningful($email)
+        ? $email
+        : (team_contact_is_meaningful($qcEmail) ? $qcEmail : '');
+    $resolvedPhone = team_contact_is_meaningful($phone)
+        ? $phone
+        : (team_contact_is_meaningful($qcPhone) ? $qcPhone : '');
+    $resolvedLinkedin = team_contact_is_meaningful($linkedin)
+        ? $linkedin
+        : (team_contact_is_meaningful($qcLinkedin) ? $qcLinkedin : '');
+
+    return [
+        'email' => $resolvedEmail,
+        'phone' => $resolvedPhone,
+        'linkedin' => $resolvedLinkedin,
+    ];
+}
+
+/**
+ * Build quick_contact storage from primary member fields (admin saves).
+ */
+function team_build_quick_contact($email, $phone, $linkedin) {
+    return [
+        'email' => trim((string) $email),
+        'phone' => trim((string) $phone),
+        'linkedin' => trim((string) $linkedin),
+    ];
+}
+
+/**
+ * Compact team card hover icons (icon-only; no visible phone text).
+ */
+function render_team_compact_quick_contact(array $member) {
+    $c = team_member_resolved_contacts($member);
+
+    if ($c['email'] !== '') {
+        $mailHref = str_starts_with(strtolower($c['email']), 'mailto:')
+            ? $c['email']
+            : 'mailto:' . $c['email'];
+        echo '<a href="' . e($mailHref) . '" title="' . e($c['email']) . '" aria-label="' . e($c['email']) . '"><i class="bi bi-envelope" aria-hidden="true"></i></a>';
+    }
+    if ($c['phone'] !== '') {
+        $phoneClean = preg_replace('/[^0-9+]/', '', $c['phone']);
+        if ($phoneClean !== '') {
+            echo '<a href="tel:' . e($phoneClean) . '" title="' . e($c['phone']) . '" aria-label="' . e($c['phone']) . '"><i class="bi bi-telephone" aria-hidden="true"></i></a>';
+        }
+    }
+    if ($c['linkedin'] !== '') {
+        $linkHref = $c['linkedin'];
+        if (!preg_match('/^https?:\/\//i', $linkHref)) {
+            $linkHref = 'https://' . $linkHref;
+        }
+        echo '<a href="' . e($linkHref) . '" target="_blank" rel="noopener noreferrer" title="' . e(t('linkedin')) . '"><i class="bi bi-linkedin" aria-hidden="true"></i></a>';
+    }
 }
 
 // Include language functions

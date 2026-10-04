@@ -205,7 +205,7 @@ $service = $services[$serviceSlug];
             <div class="service-main-content">
 
               <div class="hero-section" data-aos="zoom-in" data-aos-delay="150">
-                <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-5.webp" alt="<?php echo e($service['title']); ?>" class="img-fluid">
+                <img src="<?php echo asset_img('construction/kingfahd.webp'); ?>" alt="<?php echo e($service['title']); ?>" class="img-fluid" decoding="async" fetchpriority="high">
                 <div class="hero-overlay">
                   <div class="hero-badge">
                     <i class="bi bi-award"></i>
@@ -353,12 +353,12 @@ $service = $services[$serviceSlug];
             <div class="col-lg-6">
               <div class="project-showcase-item">
                 <div class="project-image">
-                  <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-6.webp" alt="Office Building Construction" class="img-fluid">
+                  <img src="<?php echo asset_img('construction/2026_01_21_04_05_47_IMG_4373.webp'); ?>" alt="Office Building Construction" class="img-fluid" loading="lazy" decoding="async">
                   <div class="project-overlay">
                     <div class="project-info">
-                      <h4>Downtown Office Complex</h4>
-                      <p>12-story commercial building with modern amenities</p>
-                      <a href="<?php echo ASSETS_PATH; ?>/img/construction/project-6.webp" class="view-btn glightbox">
+                      <h4>Makkah project</h4>
+                      <p>Scope of work: chilled water, Duct work and Electrical work</p>
+                      <a href="<?php echo asset_img('construction/2026_01_21_04_05_47_IMG_4373.webp'); ?>" class="view-btn glightbox">
                         <i class="bi bi-eye"></i>
                       </a>
                     </div>
@@ -371,12 +371,12 @@ $service = $services[$serviceSlug];
                 <div class="col-12">
                   <div class="project-showcase-item">
                     <div class="project-image">
-                      <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-7.webp" alt="Retail Space Construction" class="img-fluid">
+                      <img src="<?php echo asset_img('construction/kingfahd1.webp'); ?>" alt="Retail Space Construction" class="img-fluid" loading="lazy" decoding="async">
                       <div class="project-overlay">
                         <div class="project-info">
-                          <h4>Shopping Center Renovation</h4>
-                          <p>Complete modernization of existing retail space</p>
-                          <a href="<?php echo ASSETS_PATH; ?>/img/construction/project-7.webp" class="view-btn glightbox">
+                          <h4>Masjid al-Haram</h4>
+                          <p>chilled water, Duct work and Electrical work</p>
+                          <a href="<?php echo asset_img('construction/kingfahd1.webp'); ?>" class="view-btn glightbox">
                             <i class="bi bi-eye"></i>
                           </a>
                         </div>
@@ -387,12 +387,12 @@ $service = $services[$serviceSlug];
                 <div class="col-12">
                   <div class="project-showcase-item">
                     <div class="project-image">
-                      <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-8.webp" alt="Warehouse Construction" class="img-fluid">
+                      <img src="<?php echo asset_img('construction/Industrial Warehouse.webp'); ?>" alt="Warehouse Construction" class="img-fluid" loading="lazy" decoding="async">
                       <div class="project-overlay">
                         <div class="project-info">
-                          <h4>Industrial Warehouse</h4>
-                          <p>50,000 sq ft distribution facility</p>
-                          <a href="<?php echo ASSETS_PATH; ?>/img/construction/project-8.webp" class="view-btn glightbox">
+                          <h4>King Fahd Sports City Stadium</h4>
+                          <p>Scope of work : MEP</p>
+                          <a href="<?php echo asset_img('construction/Industrial Warehouse.webp'); ?>" class="view-btn glightbox">
                             <i class="bi bi-eye"></i>
                           </a>
                         </div>

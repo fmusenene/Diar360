@@ -89,14 +89,14 @@ $company_address = isset($site_settings['company_address']) ? $site_settings['co
   <div id="preloader"></div>
 
   <!-- Vendor JS Files -->
-  <script src="<?php echo ASSETS_PATH; ?>/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="<?php echo ASSETS_PATH; ?>/vendor/php-email-form/validate.js"></script>
-  <script src="<?php echo ASSETS_PATH; ?>/vendor/aos/aos.js"></script>
-  <script src="<?php echo ASSETS_PATH; ?>/vendor/swiper/swiper-bundle.min.js"></script>
-  <script src="<?php echo ASSETS_PATH; ?>/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="<?php echo asset('vendor/bootstrap/js/bootstrap.bundle.min.js'); ?>" defer></script>
+  <script src="<?php echo asset('vendor/php-email-form/validate.js'); ?>" defer></script>
+  <script src="<?php echo asset('vendor/aos/aos.js'); ?>" defer></script>
+  <script src="<?php echo asset('vendor/swiper/swiper-bundle.min.js'); ?>" defer></script>
+  <script src="<?php echo asset('vendor/glightbox/js/glightbox.min.js'); ?>" defer></script>
 
   <!-- Main JS File -->
-  <script src="<?php echo ASSETS_PATH; ?>/js/main.js"></script>
+  <script src="<?php echo asset('js/main.js'); ?>" defer></script>
 
 </body>
 

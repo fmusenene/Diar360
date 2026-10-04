@@ -42,7 +42,7 @@ $currentLang = getCurrentLanguage();
             <div class="col-lg-4">
               <div class="ceo-block-card team-card compact">
                 <div class="ceo-block-image member-photo">
-                  <img src="<?php echo ASSETS_PATH; ?>/img/<?php echo htmlspecialchars($ceo_profile['photo'] ?? 'construction/CEO.webp'); ?>" class="img-fluid" alt="<?php echo htmlspecialchars(($ceo_profile['name'] ?? 'CEO') . ' - ' . ($ceo_profile['title'] ?? '')); ?>">
+                  <img src="<?php echo e(asset_img($ceo_profile['photo'] ?? 'construction/CEO.webp')); ?>" class="img-fluid" alt="<?php echo htmlspecialchars(($ceo_profile['name'] ?? 'CEO') . ' - ' . ($ceo_profile['title'] ?? '')); ?>" decoding="async">
                   <div class="hover-overlay">
                     <div class="overlay-content">
                       <h5><?php echo htmlspecialchars($ceo_profile['name'] ?? ''); ?></h5>
@@ -94,7 +94,7 @@ $currentLang = getCurrentLanguage();
               <div class="team-card featured">
                 <div class="team-header">
                   <div class="team-image">
-                    <img src="<?php echo ASSETS_PATH; ?>/img/<?php echo htmlspecialchars($m['photo'] ?? 'construction/team-1.webp'); ?>" class="img-fluid" alt="">
+                    <img src="<?php echo e(asset_img($m['photo'] ?? 'construction/team-1.webp')); ?>" class="img-fluid" alt="" loading="lazy" decoding="async">
                     <?php if (!empty($m['experience'])): ?>
                       <div class="experience-badge"><?php echo convertNumbers($m['experience']); ?> <?php echo t('years'); ?></div>
                     <?php endif; ?>
@@ -155,19 +155,13 @@ $currentLang = getCurrentLanguage();
             <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
               <div class="team-card compact">
                 <div class="member-photo">
-                  <img src="<?php echo ASSETS_PATH; ?>/img/<?php echo htmlspecialchars($m['photo'] ?? 'construction/team-3.webp'); ?>" class="img-fluid" alt="">
+                  <img src="<?php echo e(asset_img($m['photo'] ?? 'construction/team-3.webp')); ?>" class="img-fluid" alt="" loading="lazy" decoding="async">
                   <div class="hover-overlay">
                     <div class="overlay-content">
                       <h5><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['name_ar']) ? $m['name_ar'] : ($m['name'] ?? '')); ?></h5>
                       <span><?php echo htmlspecialchars($currentLang === 'ar' && !empty($m['role_ar']) ? $m['role_ar'] : ($m['role'] ?? '')); ?></span>
                       <div class="quick-contact">
-                        <?php
-                        $qc = $m['quick_contact'] ?? [];
-                        if (!empty($qc['email'])): ?><a href="mailto:<?php echo htmlspecialchars($qc['email']); ?>" title="<?php echo t('email'); ?>"><i class="bi bi-envelope"></i></a><?php endif; ?>
-                        <?php if (!empty($qc['phone'])): ?><a href="tel:<?php echo htmlspecialchars(preg_replace('/[^0-9+]/', '', $qc['phone'])); ?>" title="<?php echo t('phone'); ?>"><i class="bi bi-telephone"></i> <?php echo formatPhoneNumber($qc['phone']); ?></a><?php endif; ?>
-                        <?php if (!empty($qc['linkedin'])): ?>
-                          <a href="<?php echo htmlspecialchars($qc['linkedin']); ?>" target="_blank" rel="noopener noreferrer" title="<?php echo t('linkedin'); ?>"><i class="bi bi-linkedin"></i></a>
-                        <?php endif; ?>
+                        <?php render_team_compact_quick_contact($m); ?>
                       </div>
                     </div>
                   </div>

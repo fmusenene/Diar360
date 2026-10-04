@@ -54,8 +54,18 @@ require_once __DIR__ . '/../config/careers-data.php';
 require_once __DIR__ . '/../config/testimonials-data.php';
 
 // Security: Session timeout and activity tracking
-$session_timeout = 10 * 60; // 20 minutes in seconds
+$session_timeout = 2 * 60 * 60; // 2 hours in seconds
 $current_time = time(); 
+
+// Handle heartbeat/activity update before timeout check
+if (isset($_GET['heartbeat']) || (isset($_POST['update_activity']) && $_SERVER['REQUEST_METHOD'] === 'POST')) {
+    if (isset($_SESSION['admin_authenticated']) && $_SESSION['admin_authenticated'] === true) {
+        $_SESSION['last_activity'] = $current_time;
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit;
+    }
+}
 
 // Preserve the last admin page we were on (so after re-login we can return there).
 // Whitelist to avoid redirecting to unexpected pages.
@@ -91,13 +101,6 @@ if (!$is_login_attempt && isset($_SESSION['last_activity']) && ($current_time - 
 
 // Update last activity time
 $_SESSION['last_activity'] = $current_time;
-
-// Handle activity update from JavaScript
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_activity'])) {
-    $_SESSION['last_activity'] = time();
-    echo json_encode(['success' => true]);
-    exit;
-}
 
 // Handle force logout from JavaScript
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['force_logout'])) {
@@ -419,7 +422,20 @@ if ($is_authenticated) {
             }
             $settings_data .= "\$site_settings = " . var_export($site_settings, true) . ";\n";
             $settings_data .= "\n?>";
-            file_put_contents(__DIR__ . '/../config/admin-settings.php', $settings_data);
+            
+            $file_path = __DIR__ . '/../config/admin-settings.php';
+            $result = file_put_contents($file_path, $settings_data);
+            if (function_exists('opcache_invalidate')) {
+                @opcache_invalidate($file_path, true);
+            }
+            if (function_exists('clearstatcache')) {
+                @clearstatcache(true, $file_path);
+            }
+            error_log('saveSettings result: ' . ($result !== false ? 'SUCCESS (' . $result . ' bytes)' : 'FAILED'));
+            
+            if ($result === false) {
+                error_log('Failed to write to admin-settings.php. Check file permissions.');
+            }
         };
 
         $safeSlug = function($name) {
@@ -688,6 +704,9 @@ if ($is_authenticated) {
         }
 
         if ($current_page === 'settings' && isset($_POST['update_settings'])) {
+            // Debug: Log the save attempt
+            error_log('Settings save attempt - POST data received: ' . print_r($_POST, true));
+            
             // Password validation
             if (!empty($_POST['new_password'])) {
                 if ($_POST['new_password'] !== $_POST['confirm_password']) {
@@ -764,7 +783,9 @@ if ($is_authenticated) {
                 ]);
                 
                 // Save settings to file
+                error_log('About to save settings with address: ' . ($site_settings['company_address'] ?? 'NOT SET'));
                 $saveSettings($admin_password, $site_settings);
+                error_log('Settings saved successfully');
                 header('Location: projects-new.php?page=settings&success=settings_updated');
                 exit;
             }
@@ -879,13 +900,17 @@ if ($is_authenticated) {
                 $ceo_profile['photo'] = $ceo_profile['photo'] ?? 'construction/CEO.webp';
             }
 
-            updateTeamData($ceo_profile, $team_members);
+            if (!updateTeamData($ceo_profile, $team_members)) {
+                header('Location: projects-new.php?page=team&error=team_save_failed');
+                exit;
+            }
             header('Location: projects-new.php?page=team&success=team_updated');
             exit;
         }
 
         // Add team member
-        if (isset($_POST['add_member'])) {
+        $is_add_member = isset($_POST['add_member']) || (isset($_POST['action_type']) && $_POST['action_type'] === 'add_member');
+        if ($is_add_member) {
             $name = trim($_POST['name'] ?? '');
             $slug = $safeSlug($name);
             if ($slug === '') $slug = 'member-' . date('YmdHis');
@@ -897,6 +922,9 @@ if ($is_authenticated) {
 
             $layout = ($_POST['layout'] ?? 'compact') === 'featured' ? 'featured' : 'compact';
             $visible = isset($_POST['visible']) ? '1' : '0';
+
+            $email = trim($_POST['email'] ?? '');
+            $phone = trim($_POST['phone'] ?? '');
 
             $socials = [
                 'linkedin' => trim($_POST['social_linkedin'] ?? ''),
@@ -919,35 +947,43 @@ if ($is_authenticated) {
                 'role' => trim($_POST['role'] ?? ''),
                 'photo' => $photo,
                 'experience' => trim($_POST['experience'] ?? ''),
-                'email' => trim($_POST['email'] ?? ''),
-                'phone' => trim($_POST['phone'] ?? ''),
+                'email' => $email,
+                'phone' => $phone,
                 'description' => trim($_POST['description'] ?? ''),
                 'credentials' => $credentials,
                 'socials' => $socials,
                 'quick_contact' => [
-                    'email' => trim($_POST['qc_email'] ?? ''),
-                    'phone' => trim($_POST['qc_phone'] ?? ''),
-                    'linkedin' => trim($_POST['qc_linkedin'] ?? ''),
+                    'email' => $email,
+                    'phone' => $phone,
+                    'linkedin' => $socials['linkedin'],
                 ],
                 'skills' => $skills,
                 'visible' => $visible,
             ];
 
-            updateTeamData($ceo_profile, $team_members);
+            if (!updateTeamData($ceo_profile, $team_members)) {
+                header('Location: projects-new.php?page=team&error=team_save_failed');
+                exit;
+            }
             header('Location: projects-new.php?page=team&success=member_added');
             exit;
         }
 
         // Edit team member
-        if (isset($_POST['edit_member'])) {
+        $is_edit_member = isset($_POST['edit_member']) || (isset($_POST['action_type']) && $_POST['action_type'] === 'edit_member');
+        if ($is_edit_member) {
             $slug = $_POST['member_slug'] ?? '';
             if (isset($team_members[$slug])) {
                 $team_members[$slug]['name'] = trim($_POST['name'] ?? '');
                 $team_members[$slug]['role'] = trim($_POST['role'] ?? '');
                 $team_members[$slug]['layout'] = ($_POST['layout'] ?? 'compact') === 'featured' ? 'featured' : 'compact';
                 $team_members[$slug]['experience'] = trim($_POST['experience'] ?? '');
-                $team_members[$slug]['email'] = trim($_POST['email'] ?? '');
-                $team_members[$slug]['phone'] = trim($_POST['phone'] ?? '');
+
+                $email = trim($_POST['email'] ?? '');
+                $phone = trim($_POST['phone'] ?? '');
+
+                $team_members[$slug]['email'] = $email;
+                $team_members[$slug]['phone'] = $phone;
                 $team_members[$slug]['description'] = trim($_POST['description'] ?? '');
                 $team_members[$slug]['visible'] = isset($_POST['visible']) ? '1' : '0';
 
@@ -956,12 +992,13 @@ if ($is_authenticated) {
                     $team_members[$slug]['photo'] = $photo;
                 }
 
-                $team_members[$slug]['socials'] = [
+                $socials = [
                     'linkedin' => trim($_POST['social_linkedin'] ?? ''),
                     'twitter' => trim($_POST['social_twitter'] ?? ''),
                     'facebook' => trim($_POST['social_facebook'] ?? ''),
                     'instagram' => trim($_POST['social_instagram'] ?? ''),
                 ];
+                $team_members[$slug]['socials'] = $socials;
 
                 $credentials = [];
                 $cred1 = trim($_POST['credential_1'] ?? '');
@@ -971,26 +1008,35 @@ if ($is_authenticated) {
                 $team_members[$slug]['credentials'] = $credentials;
 
                 $team_members[$slug]['quick_contact'] = [
-                    'email' => trim($_POST['qc_email'] ?? ''),
-                    'phone' => trim($_POST['qc_phone'] ?? ''),
-                    'linkedin' => trim($_POST['qc_linkedin'] ?? ''),
+                    'email' => $email,
+                    'phone' => $phone,
+                    'linkedin' => $socials['linkedin'],
                 ];
 
                 $skills = array_values(array_filter(array_map('trim', explode("\n", str_replace("\r", "", $_POST['skills'] ?? '')))));
                 $team_members[$slug]['skills'] = $skills;
 
-                updateTeamData($ceo_profile, $team_members);
+                if (!updateTeamData($ceo_profile, $team_members)) {
+                    header('Location: projects-new.php?page=team&error=team_save_failed');
+                    exit;
+                }
                 header('Location: projects-new.php?page=team&success=member_updated');
                 exit;
             }
+            header('Location: projects-new.php?page=team&error=member_not_found');
+            exit;
         }
 
         // Delete team member
-        if (isset($_POST['delete_member'])) {
+        $is_delete_member = isset($_POST['delete_member']) || (isset($_POST['action_type']) && $_POST['action_type'] === 'delete_member');
+        if ($is_delete_member) {
             $slug = $_POST['member_slug'] ?? '';
             if (isset($team_members[$slug])) {
                 unset($team_members[$slug]);
-                updateTeamData($ceo_profile, $team_members);
+                if (!updateTeamData($ceo_profile, $team_members)) {
+                    header('Location: projects-new.php?page=team&error=team_save_failed');
+                    exit;
+                }
                 header('Location: projects-new.php?page=team&success=member_deleted');
                 exit;
             }
@@ -1018,7 +1064,14 @@ if ($is_authenticated) {
         $updateCareersData = function($job_posts) {
             $data = "<?php\n/**\n * Careers / Jobs Data\n *\n * This file is written by the admin panel (admin/projects-new.php?page=careers).\n */\n\n";
             $data .= "\$job_posts = " . var_export($job_posts, true) . ";\n\n?>\n";
-            file_put_contents(__DIR__ . '/../config/careers-data.php', $data);
+            $file_path = __DIR__ . '/../config/careers-data.php';
+            file_put_contents($file_path, $data);
+            if (function_exists('opcache_invalidate')) {
+                @opcache_invalidate($file_path, true);
+            }
+            if (function_exists('clearstatcache')) {
+                @clearstatcache(true, $file_path);
+            }
         };
 
         if (isset($_POST['add_job'])) {
@@ -1133,7 +1186,14 @@ if ($is_authenticated) {
         $saveTestimonials = function($testimonials) {
             $data = "<?php\n/**\n * Testimonials Data\n *\n * - Public submissions append here as \"pending\"\n * - Admin moderates (approve/visible/edit/delete)\n */\n\n";
             $data .= "\$testimonials = " . var_export($testimonials, true) . ";\n\n?>\n";
-            file_put_contents(__DIR__ . '/../config/testimonials-data.php', $data);
+            $file_path = __DIR__ . '/../config/testimonials-data.php';
+            file_put_contents($file_path, $data);
+            if (function_exists('opcache_invalidate')) {
+                @opcache_invalidate($file_path, true);
+            }
+            if (function_exists('clearstatcache')) {
+                @clearstatcache(true, $file_path);
+            }
         };
 
         $normLines = function($t) {
@@ -1584,8 +1644,14 @@ function updateProjectsData($projects) {
     $data .= "];\n\n?>";
     
     $file_path = __DIR__ . '/../config/projects-data.php';
-    file_put_contents($file_path, $data);
-    return true;
+    $res = file_put_contents($file_path, $data);
+    if (function_exists('opcache_invalidate')) {
+        @opcache_invalidate($file_path, true);
+    }
+    if (function_exists('clearstatcache')) {
+        @clearstatcache(true, $file_path);
+    }
+    return ($res !== false);
 }
 
 function updateTeamData($ceo_profile, $team_members) {
@@ -1595,8 +1661,14 @@ function updateTeamData($ceo_profile, $team_members) {
     $data .= "?>\n";
 
     $file_path = __DIR__ . '/../config/team-data.php';
-    file_put_contents($file_path, $data);
-    return true;
+    $res = file_put_contents($file_path, $data);
+    if (function_exists('opcache_invalidate')) {
+        @opcache_invalidate($file_path, true);
+    }
+    if (function_exists('clearstatcache')) {
+        @clearstatcache(true, $file_path);
+    }
+    return ($res !== false);
 }
 
 ?>
@@ -2756,6 +2828,7 @@ function updateTeamData($ceo_profile, $team_members) {
                                 case 'partners_updated': echo 'Global partners updated successfully'; break;
                                 case 'cert_cards_updated': echo 'Certification cards updated successfully'; break;
                                 case 'testimonials_updated': echo 'Testimonials updated successfully'; break;
+                                case 'settings_updated': echo 'Settings updated successfully! The address has been saved.'; break;
                             }
                             ?>
                         </span>
@@ -2789,6 +2862,12 @@ function updateTeamData($ceo_profile, $team_members) {
                                     break;
                                 case 'csrf':
                                     echo 'Security token expired or invalid. Please try logging in again.';
+                                    break;
+                                case 'team_save_failed':
+                                    echo 'Could not save team data. Check that config/team-data.php is writable by the web server.';
+                                    break;
+                                case 'member_not_found':
+                                    echo 'That team member could not be updated (missing or invalid record). Refresh the page and try again.';
                                     break;
                                 default: 
                                     echo 'An error occurred'; 
@@ -2886,15 +2965,28 @@ function updateTeamData($ceo_profile, $team_members) {
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <div class="flex justify-end">
+                                    <button type="submit" name="update_settings" 
+                                            class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                        <i class="fas fa-save mr-2"></i>
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
 
-                                <?php
-                                $partners = is_array($site_settings['global_partners_items'] ?? null) ? $site_settings['global_partners_items'] : [];
-                                $edit_partner_id = $_GET['edit_partner'] ?? '';
-                                $is_partner_edit = is_string($edit_partner_id) && $edit_partner_id !== '' && isset($partners[$edit_partner_id]);
-                                $partner = $is_partner_edit ? $partners[$edit_partner_id] : ['name_en' => '', 'name_ar' => '', 'url' => '', 'logo' => '', 'visible' => '1'];
-                                ?>
+                    <!-- Partners Section (Separate from main form) -->
+                    <div class="bg-card rounded-xl border border-border p-6">
+                        <?php
+                        $partners = is_array($site_settings['global_partners_items'] ?? null) ? $site_settings['global_partners_items'] : [];
+                        $edit_partner_id = $_GET['edit_partner'] ?? '';
+                        $is_partner_edit = is_string($edit_partner_id) && $edit_partner_id !== '' && isset($partners[$edit_partner_id]);
+                        $partner = $is_partner_edit ? $partners[$edit_partner_id] : ['name_en' => '', 'name_ar' => '', 'url' => '', 'logo' => '', 'visible' => '1'];
+                        ?>
 
-                                <div class="bg-muted/30 rounded-lg p-4 border border-border">
+                        <div class="bg-muted/30 rounded-lg p-4 border border-border">
                                     <div class="flex items-center justify-between gap-3 mb-3">
                                         <h4 class="font-medium text-foreground mb-0">Homepage: Global Partners (CRUD)</h4>
                                         <a class="text-sm text-primary underline" href="projects-new.php?page=settings">Reset form</a>
@@ -3151,16 +3243,6 @@ function updateTeamData($ceo_profile, $team_members) {
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <div class="flex justify-end">
-                                    <button type="submit" name="update_settings" 
-                                            class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                                        <i class="fas fa-save mr-2"></i>
-                                        Save Changes
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
                     </div>
                     
                     <!-- Security Settings -->
@@ -3320,7 +3402,7 @@ function updateTeamData($ceo_profile, $team_members) {
                     <!-- CEO Editor -->
                     <div class="bg-card rounded-xl border border-border p-6">
                         <h3 class="text-lg font-heading font-bold text-foreground mb-4">CEO Block</h3>
-                        <form method="post" enctype="multipart/form-data" class="space-y-4">
+                        <form method="post" action="projects-new.php?page=team" enctype="multipart/form-data" class="space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-foreground mb-2">Name</label>
@@ -3428,7 +3510,8 @@ function updateTeamData($ceo_profile, $team_members) {
                                 </button>
                             </div>
 
-                            <form id="member-form" method="post" enctype="multipart/form-data" class="space-y-4">
+                            <form id="member-form" method="post" action="projects-new.php?page=team" enctype="multipart/form-data" class="space-y-4">
+                                <input type="hidden" id="member-action" name="action_type" value="add_member">
                                 <input type="hidden" id="member-slug" name="member_slug" value="">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -3456,7 +3539,8 @@ function updateTeamData($ceo_profile, $team_members) {
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-foreground mb-2">Phone</label>
-                                        <input id="member-phone" type="text" name="phone" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        <input id="member-phone" type="text" name="phone" placeholder="+966..." class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
+                                        <p class="text-xs text-muted-foreground mt-1">Leave blank to hide phone on the site. Used on featured cards and compact hover icons.</p>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-foreground mb-2">Photo</label>
@@ -3485,12 +3569,8 @@ function updateTeamData($ceo_profile, $team_members) {
                                         </div>
                                     </div>
                                     <div class="bg-muted/30 rounded-lg p-4 border border-border">
-                                        <h4 class="font-medium text-foreground mb-3">Compact Card Overlay</h4>
-                                        <div class="space-y-3">
-                                            <input id="member-qc-email" type="text" name="qc_email" placeholder="Email link (mailto:... or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                            <input id="member-qc-phone" type="text" name="qc_phone" placeholder="Phone link (tel:... or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                            <input id="member-qc-linkedin" type="text" name="qc_linkedin" placeholder="LinkedIn link (or #)" class="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring">
-                                        </div>
+                                        <h4 class="font-medium text-foreground mb-2">Compact card icons</h4>
+                                        <p class="text-sm text-muted-foreground">Hover icons on compact cards use <strong>Email</strong>, <strong>Phone</strong>, and <strong>LinkedIn</strong> from the fields above. Clear a field and save to remove that icon on the public site.</p>
                                     </div>
                                 </div>
 
@@ -3516,7 +3596,7 @@ function updateTeamData($ceo_profile, $team_members) {
 
                                 <div class="flex justify-end gap-3 pt-2">
                                     <button type="button" onclick="closeMemberModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
-                                    <button id="member-submit-btn" type="submit" name="add_member" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                                    <button id="member-submit-btn" type="submit" name="add_member" value="1" class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
                                         <i class="fas fa-save mr-2"></i>Save Member
                                     </button>
                                 </div>
@@ -3531,11 +3611,12 @@ function updateTeamData($ceo_profile, $team_members) {
                         <div class="p-6">
                             <h3 class="text-lg font-heading font-bold text-foreground mb-2">Delete Team Member</h3>
                             <p class="text-muted-foreground mb-6">Are you sure you want to delete <span id="member-delete-name" class="font-medium text-foreground"></span>?</p>
-                            <form method="post">
+                            <form method="post" action="projects-new.php?page=team">
+                                <input type="hidden" name="action_type" value="delete_member">
                                 <input type="hidden" id="member-delete-slug" name="member_slug" value="">
                                 <div class="flex justify-end gap-3">
                                     <button type="button" onclick="closeMemberDeleteModal()" class="px-4 py-2 bg-background border border-input rounded-lg hover:bg-muted transition-colors">Cancel</button>
-                                    <button type="submit" name="delete_member" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                    <button type="submit" name="delete_member" value="1" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                                         <i class="fas fa-trash mr-2"></i>Delete
                                     </button>
                                 </div>
@@ -5316,7 +5397,7 @@ function updateTeamData($ceo_profile, $team_members) {
         let warningCountdownInterval;
         let warningCountdownSeconds = 60;
         let lastHeartbeatAt = 0;
-        const sessionTimeout = 20 * 60 * 1000; // 20 minutes
+        const sessionTimeout = 2 * 60 * 60 * 1000; // 2 hours
         const warningDuration = 60 * 1000; // show warning 60 seconds before logout
         const warningAt = sessionTimeout - warningDuration;
         let isWarningOpen = false;
@@ -5357,8 +5438,10 @@ function updateTeamData($ceo_profile, $team_members) {
             fetch('projects-new.php?heartbeat=1', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: 'update_activity=1'
             }).catch(() => {});
         }
 
@@ -5465,13 +5548,18 @@ function updateTeamData($ceo_profile, $team_members) {
             if (!form) return;
             form.reset();
             document.getElementById('member-modal-title').textContent = 'Add Member';
+            const actionInput = document.getElementById('member-action');
+            if (actionInput) actionInput.value = 'add_member';
             document.getElementById('member-slug').value = '';
             document.getElementById('member-current-photo').textContent = '';
             document.getElementById('member-visible').checked = true;
 
             const submitBtn = document.getElementById('member-submit-btn');
-            submitBtn.name = 'add_member';
-            submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Create Member';
+            if (submitBtn) {
+                submitBtn.name = 'add_member';
+                submitBtn.value = '1';
+                submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Create Member';
+            }
             document.getElementById('member-modal').classList.remove('hidden');
         }
 
@@ -5484,28 +5572,29 @@ function updateTeamData($ceo_profile, $team_members) {
             form.reset();
 
             document.getElementById('member-modal-title').textContent = 'Edit Member';
+            const actionInput = document.getElementById('member-action');
+            if (actionInput) actionInput.value = 'edit_member';
             document.getElementById('member-slug').value = slug;
             document.getElementById('member-name').value = member.name || '';
             document.getElementById('member-role').value = member.role || '';
             document.getElementById('member-layout').value = (member.layout === 'featured') ? 'featured' : 'compact';
             document.getElementById('member-experience').value = member.experience || '';
-            document.getElementById('member-email').value = member.email || '';
-            document.getElementById('member-phone').value = member.phone || '';
+
+            const phoneVal = member.phone || '';
+            const emailVal = member.email || '';
+            document.getElementById('member-email').value = emailVal;
+            document.getElementById('member-phone').value = phoneVal;
             document.getElementById('member-description').value = member.description || '';
             document.getElementById('member-visible').checked = (member.visible === '1' || member.visible === 1 || member.visible === true);
 
             document.getElementById('member-current-photo').textContent = member.photo ? ('Current: ' + member.photo) : '';
 
             const socials = member.socials || {};
-            document.getElementById('member-social-linkedin').value = socials.linkedin || '';
+            const linkedinVal = socials.linkedin || '';
+            document.getElementById('member-social-linkedin').value = linkedinVal;
             document.getElementById('member-social-twitter').value = socials.twitter || '';
             document.getElementById('member-social-facebook').value = socials.facebook || '';
             document.getElementById('member-social-instagram').value = socials.instagram || '';
-
-            const qc = member.quick_contact || {};
-            document.getElementById('member-qc-email').value = qc.email || '';
-            document.getElementById('member-qc-phone').value = qc.phone || '';
-            document.getElementById('member-qc-linkedin').value = qc.linkedin || '';
 
             const creds = Array.isArray(member.credentials) ? member.credentials : [];
             document.getElementById('member-credential-1-icon').value = creds[0]?.icon || 'bi-award';
@@ -5517,8 +5606,11 @@ function updateTeamData($ceo_profile, $team_members) {
             document.getElementById('member-skills').value = skills.join("\n");
 
             const submitBtn = document.getElementById('member-submit-btn');
-            submitBtn.name = 'edit_member';
-            submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Update Member';
+            if (submitBtn) {
+                submitBtn.name = 'edit_member';
+                submitBtn.value = '1';
+                submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Update Member';
+            }
 
             document.getElementById('member-modal').classList.remove('hidden');
         }

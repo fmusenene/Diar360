@@ -70,13 +70,13 @@ require_once __DIR__ . '/functions/language.php';
                 <h5><?php echo t('about_certifications'); ?></h5>
                 <div class="row g-3 align-items-center">
                   <div class="col-4 col-md-3">
-                    <img src="<?php echo ASSETS_PATH; ?>/img/construction/badge-4.webp" alt="<?php echo t('certification'); ?>" class="img-fluid">
+                    <img src="<?php echo asset_img('construction/badge-4.webp'); ?>" alt="<?php echo t('certification'); ?>" class="img-fluid" loading="lazy" decoding="async">
                   </div>
                   <div class="col-4 col-md-3">
-                    <img src="<?php echo ASSETS_PATH; ?>/img/construction/badge-3.webp" alt="<?php echo t('certification'); ?>" class="img-fluid">
+                    <img src="<?php echo asset_img('construction/badge-3.webp'); ?>" alt="<?php echo t('certification'); ?>" class="img-fluid" loading="lazy" decoding="async">
                   </div>
                   <div class="col-4 col-md-3">
-                    <img src="<?php echo ASSETS_PATH; ?>/img/construction/badge-5.webp" alt="<?php echo t('certification'); ?>" class="img-fluid">
+                    <img src="<?php echo asset_img('construction/badge-5.webp'); ?>" alt="<?php echo t('certification'); ?>" class="img-fluid" loading="lazy" decoding="async">
                   </div>
                 </div>
               </div>
@@ -89,9 +89,9 @@ require_once __DIR__ . '/functions/language.php';
 
           <div class="col-lg-6">
             <div class="about-image position-relative" data-aos="fade-left" data-aos-delay="200">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-3.webp" alt="<?php echo t('construction_team'); ?>" class="img-fluid main-image rounded">
+              <img src="<?php echo asset_img('construction/about1.webp'); ?>" alt="<?php echo t('construction_team'); ?>" class="img-fluid main-image rounded" decoding="async">
               <div class="image-overlay">
-                <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-7.webp" alt="<?php echo t('construction_project'); ?>" class="img-fluid rounded">
+                <img src="<?php echo asset_img('construction/about2.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid rounded" loading="lazy" decoding="async">
               </div>
               <div class="experience-badge" data-aos="zoom-in" data-aos-delay="500">
                 <span><?php echo convertNumbers(COMPANY_EXPERIENCE_YEARS . '+'); ?></span>

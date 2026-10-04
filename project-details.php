@@ -212,7 +212,7 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
           <div class="row align-items-center">
             <div class="col-lg-6">
               <div class="project-banner">
-                <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>.webp" alt="<?php echo e(getProjectField($project, 'title', $project_slug)); ?>" class="img-fluid" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-4.webp'">
+                <img src="<?php echo e(asset_img('projects/' . $project_slug . '.webp')); ?>" alt="<?php echo e(getProjectField($project, 'title', $project_slug)); ?>" class="img-fluid" decoding="async" fetchpriority="high" onerror="this.src='<?php echo e(asset_img('construction/project-4.webp')); ?>'">
                 <div class="banner-badge">
                   <span class="status-indicator <?php echo $project ? getStatusClass($project['status']) : ''; ?>"><?php echo $project ? getStatusLabel($project['status']) : ''; ?></span>
                 </div>
@@ -260,25 +260,25 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
         <div class="visual-showcase" data-aos="fade-up" data-aos-delay="300">
           <div class="showcase-grid">
             <div class="showcase-item large">
-              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-construction.webp" alt="<?php echo t('building_progress'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-10.webp'">
+              <img src="<?php echo e(asset_img('projects/' . $project_slug . '-construction.webp')); ?>" alt="<?php echo t('building_progress'); ?>" class="img-fluid" loading="lazy" decoding="async" onerror="this.src='<?php echo e(asset_img('construction/project-10.webp')); ?>'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('construction_phase'); ?></span>
               </div>
             </div>
             <div class="showcase-item">
-              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-foundation.webp" alt="<?php echo t('foundation_work'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-2.webp'">
+              <img src="<?php echo e(asset_img('projects/' . $project_slug . '-foundation.webp')); ?>" alt="<?php echo t('foundation_work'); ?>" class="img-fluid" loading="lazy" decoding="async" onerror="this.src='<?php echo e(asset_img('construction/project-2.webp')); ?>'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('foundation'); ?></span>
               </div>
             </div>
             <div class="showcase-item">
-              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-interior.webp" alt="<?php echo t('interior_planning'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-6.webp'">
+              <img src="<?php echo e(asset_img('projects/' . $project_slug . '-interior.webp')); ?>" alt="<?php echo t('interior_planning'); ?>" class="img-fluid" loading="lazy" decoding="async" onerror="this.src='<?php echo e(asset_img('construction/project-6.webp')); ?>'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('interior_design'); ?></span>
               </div>
             </div>
             <div class="showcase-item tall">
-              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $project_slug; ?>-architecture.webp" alt="<?php echo t('architectural_detail'); ?>" class="img-fluid" loading="lazy" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp'">
+              <img src="<?php echo e(asset_img('projects/' . $project_slug . '-architecture.webp')); ?>" alt="<?php echo t('architectural_detail'); ?>" class="img-fluid" loading="lazy" decoding="async" onerror="this.src='<?php echo e(asset_img('construction/project-1.webp')); ?>'">
               <div class="item-overlay">
                 <span class="overlay-label"><?php echo t('architecture'); ?></span>
               </div>
@@ -372,17 +372,19 @@ function getProjectSpecValue($specName, $specValue, $projectSlug) {
             <p><?php echo t('project_details_technical_desc'); ?></p>
           </div>
           <?php
-            $blueprint_image_web = ASSETS_PATH . '/img/projects/' . $project_slug . '-blueprint.webp';
-            $quality_image_web = ASSETS_PATH . '/img/projects/' . $project_slug . '-quality-control.webp';
-            $system_image_web = ASSETS_PATH . '/img/projects/' . $project_slug . '-system-installation.webp';
-
             $blueprint_image_file = __DIR__ . '/assets/img/projects/' . $project_slug . '-blueprint.webp';
             $quality_image_file = __DIR__ . '/assets/img/projects/' . $project_slug . '-quality-control.webp';
             $system_image_file = __DIR__ . '/assets/img/projects/' . $project_slug . '-system-installation.webp';
 
-            $blueprint_image_src = file_exists($blueprint_image_file) ? $blueprint_image_web : ASSETS_PATH . '/img/construction/project-12.webp';
-            $quality_image_src = file_exists($quality_image_file) ? $quality_image_web : ASSETS_PATH . '/img/construction/project-3.webp';
-            $system_image_src = file_exists($system_image_file) ? $system_image_web : ASSETS_PATH . '/img/construction/project-7.webp';
+            $blueprint_image_src = file_exists($blueprint_image_file)
+                ? asset_img('projects/' . $project_slug . '-blueprint.webp')
+                : asset_img('construction/project-12.webp');
+            $quality_image_src = file_exists($quality_image_file)
+                ? asset_img('projects/' . $project_slug . '-quality-control.webp')
+                : asset_img('construction/project-3.webp');
+            $system_image_src = file_exists($system_image_file)
+                ? asset_img('projects/' . $project_slug . '-system-installation.webp')
+                : asset_img('construction/project-7.webp');
           ?>
           <div class="row g-3">
             <div class="col-md-4">

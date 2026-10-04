@@ -45,7 +45,7 @@ $team_members = array (
     'name_ar' => 'Eng. Sami Saleh',
     'role' => 'Project Manager',
     'role_ar' => 'Project Manager',
-    'photo' => 'team/Screenshot-2026-02-16-100448-2026-04-07_08-21-50.png',
+    'photo' => 'team/ChatGPT-Image-Apr-19-2026-12_55_00-PM-2026-04-19_15-05-35.png',
     'experience' => '+96',
     'email' => 'sami.saleh@diar360.com',
     'phone' => '+1 (555) 123-456',
@@ -135,12 +135,12 @@ $team_members = array (
     'role_ar' => 'منسق مشاريع / مهندس',
     'photo' => 'team/Screenshot-2026-04-09-164602-2026-04-09_15-46-39.png',
     'email' => 'm.abdelnaser@diar360.com',
-    'phone' => '+966548461212',
+    'phone' => '966548461212',
     'quick_contact' => 
     array (
-      'email' => '#',
-      'phone' => '#',
-      'linkedin' => '#',
+      'email' => 'm.abdelnaser@diar360.com',
+      'phone' => '966548461212',
+      'linkedin' => 'https://www.linkedin.com/company/108230105/admin/dashboard/',
     ),
     'skills' => 
     array (
@@ -148,7 +148,7 @@ $team_members = array (
       1 => 'LEED AP',
     ),
     'visible' => '1',
-    'experience' => '',
+    'experience' => '8+',
     'description' => 'hello hello hello',
     'description_ar' => 'مرحبا مرحبا مرحبا',
     'socials' => 
@@ -169,7 +169,7 @@ $team_members = array (
     'name_ar' => 'Eng. Yasir Sajid',
     'role' => 'Engineered Division, Shop Drawings',
     'role_ar' => 'قسم الهندسة، الرسومات التنفيذية',
-    'photo' => 'construction/team-4.webp',
+    'photo' => 'team/IMG_7112-2026-07-02_21-49-40.jpeg',
     'email' => 'm.sajid@diar360.com',
     'phone' => '+966534413208',
     'quick_contact' => 
@@ -341,6 +341,37 @@ $team_members = array (
     'credentials' => 
     array (
     ),
+  ),
+  'eng-walled-anwar' => 
+  array (
+    'layout' => 'compact',
+    'name' => 'Eng. Walled Anwar',
+    'role' => 'Project Manager',
+    'photo' => 'team/rat-2026-07-02_21-50-52.jpeg',
+    'experience' => '12+',
+    'email' => 'fmusenene@gmail.com',
+    'phone' => '0752549509',
+    'description' => 'hdhdhdhdhdhdhdhdhdhdhdh',
+    'credentials' => 
+    array (
+    ),
+    'socials' => 
+    array (
+      'linkedin' => '',
+      'twitter' => '',
+      'facebook' => '',
+      'instagram' => '',
+    ),
+    'quick_contact' => 
+    array (
+      'email' => '',
+      'phone' => '',
+      'linkedin' => '',
+    ),
+    'skills' => 
+    array (
+    ),
+    'visible' => '1',
   ),
 );
 

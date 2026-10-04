@@ -8,10 +8,18 @@ $site_settings = array (
   'site_name' => 'Diar360',
   'admin_email' => 'info@diar360.com',
   'company_phone' => '+966 1 1 296 7734',
-  'company_address' => 'Prince Mohammed Ibn Salman Ibn Abdulaziz Rd, Al Falah Dist, Riyadh - KSA',
+  'company_address' => 'Al Shaikh Hassan Bin Hussain Bin Ali',
   'maintenance_mode' => '0',
   'global_partners_items' => 
   array (
+    'partner-20260419082629' => 
+    array (
+      'name_en' => '',
+      'name_ar' => '',
+      'url' => '',
+      'logo' => '',
+      'visible' => '1',
+    ),
   ),
   'certification_cards' => 
   array (
@@ -40,6 +48,10 @@ $site_settings = array (
       'order' => 2,
     ),
   ),
+  'global_partners_title_en' => '',
+  'global_partners_title_ar' => '',
+  'global_partners_desc_en' => '',
+  'global_partners_desc_ar' => '',
 );
 
 ?>

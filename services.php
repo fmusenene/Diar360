@@ -132,7 +132,7 @@ require_once __DIR__ . '/functions/language.php';
         <div class="row mt-5">
           <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">
             <div class="service-image-block">
-              <img src="<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp" alt="<?php echo t('construction_services'); ?>" class="img-fluid">
+              <img src="<?php echo asset_img('construction/services.webp'); ?>" alt="<?php echo t('construction_services'); ?>" class="img-fluid" loading="lazy" decoding="async">
             </div>
           </div>
 

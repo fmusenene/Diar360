@@ -129,7 +129,7 @@ function homeProjectStatusLabel($status) {
 
           <div class="col-lg-6" data-aos="fade-left" data-aos-delay="300">
             <div class="hero-image">
-              <img src="<?php echo asset('img/construction/showcase-3.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid">
+              <img src="<?php echo asset('img/construction/showcase-3.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid" decoding="async" fetchpriority="high">
               <div class="image-badge">
                 <span><?php echo t('hero_iso_certified'); ?></span>
                 <p><?php echo t('hero_certified_construction'); ?></p>
@@ -208,7 +208,7 @@ function homeProjectStatusLabel($status) {
             <div class="about-image position-relative" data-aos="fade-left" data-aos-delay="200">
               <img src="<?php echo asset('img/construction/project-3.webp'); ?>" alt="<?php echo t('construction_team'); ?>" class="img-fluid main-image rounded">
               <div class="image-overlay">
-                <img src="<?php echo asset('img/construction/project-7.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid rounded">
+                <img src="<?php echo asset('img/construction/project-71.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid rounded">
               </div>
               <div class="experience-badge" data-aos="zoom-in" data-aos-delay="500">
                 <span><?php echo convertNumbers(COMPANY_EXPERIENCE_YEARS . '+'); ?></span>
@@ -287,7 +287,7 @@ function homeProjectStatusLabel($status) {
         <div class="row mt-5">
           <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">
             <div class="service-image-block">
-              <img src="<?php echo asset('img/construction/project-1.webp'); ?>" alt="Construction Services" class="img-fluid">
+              <img src="<?php echo asset('img/construction/project-11.webp'); ?>" alt="Construction Services" class="img-fluid">
             </div>
           </div>
 
@@ -502,7 +502,7 @@ function homeProjectStatusLabel($status) {
               if ($avatarUrl !== '') {
                 $avatarSrc = $avatarUrl;
               } elseif ($avatar !== '') {
-                $avatarSrc = (ASSETS_PATH . '/img/' . ltrim($avatar, '/'));
+                $avatarSrc = asset_img($avatar);
               } elseif ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $hash = md5($email);
                 // Use d=404 so we can fall back to icon when no Gravatar exists.
@@ -740,7 +740,7 @@ function homeProjectStatusLabel($status) {
                   }
                   $url = trim((string)($p['url'] ?? ''));
                   $logo = trim((string)($p['logo'] ?? ''));
-                  $logoSrc = $logo !== '' ? (ASSETS_PATH . '/img/' . ltrim($logo, '/')) : '';
+                  $logoSrc = $logo !== '' ? asset_img($logo) : '';
                   ?>
 
                   <?php if ($url !== ''): ?><a href="<?php echo e($url); ?>" target="_blank" rel="noopener noreferrer" class="d-inline-flex align-items-center text-decoration-none"><?php endif; ?>
@@ -796,7 +796,7 @@ function homeProjectStatusLabel($status) {
               if ($desc === '') $desc = trim((string)($c['desc_en'] ?? '')) ?: trim((string)($c['desc_ar'] ?? ''));
 
               $icon = trim((string)($c['icon'] ?? ''));
-              $iconSrc = $icon !== '' ? ASSETS_PATH . '/img/' . ltrim($icon, '/') : asset('img/construction/badge-1.webp');
+              $iconSrc = $icon !== '' ? asset_img($icon) : asset('img/construction/badge-1.webp');
             ?>
               <div class="cert-card" data-aos="flip-left" data-aos-delay="<?php echo $delay; ?>">
                 <div class="cert-icon">
@@ -905,7 +905,7 @@ function homeProjectStatusLabel($status) {
                   <div class="team-card featured">
                     <div class="team-header">
                       <div class="team-image">
-                        <img src="<?php echo ASSETS_PATH; ?>/img/<?php echo htmlspecialchars($photo); ?>" class="img-fluid" alt="">
+                        <img src="<?php echo e(asset_img($photo)); ?>" class="img-fluid" alt="" loading="lazy" decoding="async">
                         <?php if (!empty($experience)): ?>
                           <div class="experience-badge"><?php echo convertNumbers($experience); ?> <?php echo t('years'); ?></div>
                         <?php endif; ?>
@@ -950,15 +950,13 @@ function homeProjectStatusLabel($status) {
                 <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
                   <div class="team-card compact">
                     <div class="member-photo">
-                      <img src="<?php echo ASSETS_PATH; ?>/img/<?php echo htmlspecialchars($photo); ?>" class="img-fluid" alt="">
+                      <img src="<?php echo e(asset_img($photo)); ?>" class="img-fluid" alt="" loading="lazy" decoding="async">
                       <div class="hover-overlay">
                         <div class="overlay-content">
                           <h5><?php echo htmlspecialchars($name); ?></h5>
                           <span><?php echo htmlspecialchars($role); ?></span>
                           <div class="quick-contact">
-                            <?php if (!empty($qc['email'])): ?><a href="<?php echo htmlspecialchars($qc['email']); ?>"><i class="bi bi-envelope"></i></a><?php endif; ?>
-                            <?php if (!empty($qc['phone'])): ?><a href="<?php echo htmlspecialchars($qc['phone']); ?>"><i class="bi bi-telephone"></i></a><?php endif; ?>
-                            <?php if (!empty($qc['linkedin'])): ?><a href="<?php echo htmlspecialchars($qc['linkedin']); ?>"><i class="bi bi-linkedin"></i></a><?php endif; ?>
+                            <?php render_team_compact_quick_contact($m); ?>
                           </div>
                         </div>
                       </div>

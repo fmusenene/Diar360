@@ -23,14 +23,14 @@ $projects = [
             'Location' => 'Makkah',
             'Status' => 'Completed',
         ],
-        'contract_pdf' => 'makkah-duct-work-2026-04-02_08-01-29-contract.pdf',
+        'contract_pdf' => '',
         'visible' => '1',
     ],
     'makkah-electrical' => [
         'title' => 'Makkah Project - Electrical Work',
         'title_ar' => 'مشروع مكة - أعمال كهربائية',
         'category' => 'MEP',
-        'status' => 'in-progress',
+        'status' => 'planning',
         'location' => 'Makkah',
         'contract_value' => '3.2 MM SAR',
         'scope' => 'Electrical work installation and services',
@@ -42,8 +42,8 @@ $projects = [
             'Location' => 'Makkah',
             'Status' => 'Completed',
         ],
-        'visible' => '1',
-        'contract_pdf' => 'makkah-electrical-2026-04-05_13-51-21-contract.pdf',
+        'visible' => '0',
+        'contract_pdf' => '',
     ],
     'rimal-project' => [
         'title' => 'Rimal Project',
@@ -507,7 +507,8 @@ $projects = [
             'Location' => 'Riyadh',
             'Status' => 'Completed',
         ],
-        'visible' => '0',
+        'visible' => '1',
+        'contract_pdf' => '',
     ],
 ];
 

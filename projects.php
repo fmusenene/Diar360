@@ -182,7 +182,8 @@ function getLocationTranslation($location) {
           $offset = ($currentPage - 1) * $perPage;
           $pagedSlugs = array_slice(array_keys($visibleProjects), $offset, $perPage, true);
 
-          $dynamic_delay = 50;
+          $dynamic_delay = 0;
+          $projectImgFallback = asset_img('construction/project-1.webp');
           foreach ($pagedSlugs as $slug) {
               $project = $visibleProjects[$slug];
           ?>
@@ -202,7 +203,6 @@ function getLocationTranslation($location) {
                       <?php echo htmlspecialchars($project['scope']); ?>
                     </span>
                     <span class="spec-item">
-                      <i class="bi bi-currency-dollar"></i>
                       <?php echo convertNumbers(str_replace([' MM SAR', ' Million SAR'], '', $project['contract_value'])); ?> <?php echo t('mm_sar'); ?>
                     </span>
                   </div>
@@ -218,14 +218,14 @@ function getLocationTranslation($location) {
               </a>
             </div>
             <div class="project-visual">
-              <img src="<?php echo ASSETS_PATH; ?>/img/projects/<?php echo $slug; ?>.webp" alt="<?php echo htmlspecialchars($project['title']); ?>" class="img-fluid" onerror="this.src='<?php echo ASSETS_PATH; ?>/img/construction/project-1.webp'">
+              <img src="<?php echo e(asset_img('projects/' . $slug . '.webp')); ?>" alt="<?php echo htmlspecialchars($project['title']); ?>" class="img-fluid" loading="lazy" decoding="async" onerror="this.src='<?php echo e($projectImgFallback); ?>'">
               <div class="project-badge">
                 <i class="<?php echo getStatusIcon($project['status']); ?>"></i>
               </div>
             </div>
           </div><!-- End Project Item -->
           <?php
-              $dynamic_delay += 25;
+              $dynamic_delay = min($dynamic_delay + 25, 120);
           }
           ?>
 

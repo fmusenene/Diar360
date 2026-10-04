@@ -130,13 +130,20 @@
   });
 
   /**
-   * Preloader
+   * Preloader — hide as soon as DOM is ready (do not wait for every image/font).
    */
   const preloader = document.querySelector('#preloader');
   if (preloader) {
-    window.addEventListener('load', () => {
-      preloader.remove();
-    });
+    const hidePreloader = () => {
+      preloader.classList.add('preloader-done');
+      preloader.addEventListener('transitionend', () => preloader.remove(), { once: true });
+      setTimeout(() => preloader.remove(), 400);
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', hidePreloader, { once: true });
+    } else {
+      hidePreloader();
+    }
   }
 
   /**
@@ -164,14 +171,22 @@
    * Animation on scroll function and init
    */
   function aosInit() {
+    if (typeof AOS === 'undefined') return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     AOS.init({
-      duration: 600,
-      easing: 'ease-in-out',
+      duration: reduceMotion ? 0 : 280,
+      easing: 'ease-out',
       once: true,
-      mirror: false
+      mirror: false,
+      offset: 40,
+      disable: reduceMotion
     });
   }
-  window.addEventListener('load', aosInit);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', aosInit, { once: true });
+  } else {
+    aosInit();
+  }
 
   /**
    * Init swiper sliders
@@ -190,7 +205,11 @@
     });
   }
 
-  window.addEventListener("load", initSwiper);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSwiper, { once: true });
+  } else {
+    initSwiper();
+  }
 
   /**
    * Initiate glightbox

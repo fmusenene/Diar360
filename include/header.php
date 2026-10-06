@@ -60,6 +60,10 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
   <link rel="shortcut icon" type="image/png" href="<?php echo asset('img/favicon.png'); ?>">
   <link rel="apple-touch-icon" href="<?php echo asset('img/favicon.png'); ?>">
 
+  <?php if ($currentPage === 'index'): ?>
+  <link rel="preload" as="image" href="<?php echo asset('img/construction/showcase-3.webp'); ?>" fetchpriority="high">
+  <?php endif; ?>
+
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
@@ -93,7 +97,8 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
     /* Responsive logo */
     @media (max-width: 768px) {
       .diar360-logo img {
-        max-height: 120px; /* extra large on mobile as well */
+        max-height: 52px;
+        width: auto;
       }
     }
     
@@ -156,23 +161,13 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       color: #14529d;
     }
     
-    /* Mobile Language Switcher */
+    /* Mobile language switcher — flex sibling of contact (no absolute overlap) */
     .language-switcher-mobile {
-      position: absolute;
-      top: 50%;
-      right: 15px;
-      transform: translateY(-50%);
-      z-index: 1000;
+      flex-shrink: 0;
     }
     
     .language-switcher-mobile .lang-switch-container {
       width: 110px;
-    }
-    
-    /* RTL support for mobile language switcher */
-    body[dir="rtl"] .language-switcher-mobile {
-      right: auto;
-      left: 15px;
     }
     
     /* Mobile responsive */
@@ -200,15 +195,6 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
         width: 98px;
       }
       
-      /* Adjust contact info on mobile to make room for language switcher */
-      .topbar .contact-info {
-        padding-right: 95px;
-      }
-      
-      body[dir="rtl"] .topbar .contact-info {
-        padding-right: 0;
-        padding-left: 95px;
-      }
     }
     
     @media (max-width: 576px) {
@@ -227,16 +213,6 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
         font-size: 10px;
         width: 11px;
         height: 11px;
-      }
-      
-      .topbar .contact-info {
-        padding-right: 100px;
-        font-size: 12px;
-      }
-      
-      body[dir="rtl"] .topbar .contact-info {
-        padding-right: 0;
-        padding-left: 100px;
       }
     }
     
@@ -323,6 +299,33 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       direction: ltr !important;
       text-align: left !important;
     }
+
+    /* Top bar: mirror sides in Arabic without overlapping contact + language pill */
+    body[dir="rtl"] .header .topbar .topbar-inner {
+      flex-direction: row-reverse;
+    }
+
+    body[dir="rtl"] .header .topbar .contact-info {
+      align-items: flex-end;
+      text-align: right;
+    }
+
+    body[dir="rtl"] .header .topbar .contact-info .topbar-email a {
+      direction: ltr;
+      unicode-bidi: plaintext;
+      text-align: right;
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    body[dir="rtl"] .header .topbar .contact-info .topbar-phone {
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    body[dir="rtl"] .header .topbar .contact-info .topbar-phone .phone-number {
+      text-align: right !important;
+    }
     <?php endif; ?>
   </style>
 
@@ -339,10 +342,10 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
   <header id="header" class="header sticky-top">
 
     <div class="topbar d-flex align-items-center dark-background">
-      <div class="container d-flex justify-content-center justify-content-md-between position-relative">
-        <div class="contact-info d-flex align-items-center">
-          <i class="bi bi-envelope d-flex align-items-center"><a href="mailto:<?php echo e($admin_email); ?>"><?php echo e($admin_email); ?></a></i>
-          <i class="bi bi-phone d-flex align-items-center ms-4"><?php echo formatPhoneNumber($company_phone); ?></i>
+      <div class="container topbar-inner d-flex justify-content-center justify-content-md-between position-relative">
+        <div class="contact-info d-flex align-items-center flex-wrap">
+          <i class="bi bi-envelope d-flex align-items-center topbar-email"><a href="mailto:<?php echo e($admin_email); ?>"><?php echo e($admin_email); ?></a></i>
+          <i class="bi bi-phone d-flex align-items-center ms-md-4 topbar-phone"><?php echo formatPhoneNumber($company_phone); ?></i>
         </div>
         <div class="social-links d-none d-md-flex align-items-center">
           <!-- Language Switcher - Desktop -->
@@ -384,7 +387,7 @@ $currentUrl = strtok($currentUrl, '?'); // Remove existing query parameters
       <div class="container position-relative d-flex align-items-center justify-content-between">
         <a href="index.php" class="logo d-flex align-items-center">
           <div class="diar360-logo">
-            <img src="<?php echo asset('img/logo.png'); ?>" alt="Diar 360" width="200" height="80" decoding="async" fetchpriority="high" />
+            <img src="<?php echo asset('img/logo.png'); ?>" alt="Diar 360" width="200" height="80" decoding="async" fetchpriority="high" class="site-logo-img" />
           </div>
         </a>
 

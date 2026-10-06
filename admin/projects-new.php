@@ -52,6 +52,7 @@ require_once __DIR__ . '/../config/project-status.php';
 require_once __DIR__ . '/../config/team-data.php';
 require_once __DIR__ . '/../config/careers-data.php';
 require_once __DIR__ . '/../config/testimonials-data.php';
+require_once __DIR__ . '/../functions/image-optimize.php';
 
 // Security: Session timeout and activity tracking
 $session_timeout = 2 * 60 * 60; // 2 hours in seconds
@@ -870,11 +871,13 @@ if ($is_authenticated) {
             $base = preg_replace('/[^a-zA-Z0-9_-]+/', '-', pathinfo($orig, PATHINFO_FILENAME));
             $base = trim($base, '-');
             if ($base === '') $base = 'team';
-            $filename = $base . '-' . date('Y-m-d_H-i-s') . '.' . $ext;
+            $filename = $base . '-' . date('Y-m-d_H-i-s') . '.webp';
             $dest = $team_upload_dir . '/' . $filename;
 
-            if (!move_uploaded_file($tmp, $dest)) return '';
-            return 'team/' . $filename; // relative to assets/img/
+            if (!diar_save_optimized_upload($tmp, $dest, 800, 82)) {
+                return '';
+            }
+            return 'team/' . $filename;
         };
 
         // Update CEO profile
@@ -1305,57 +1308,7 @@ if ($is_authenticated) {
                 
                 $tmp_name = $_FILES[$field]['tmp_name'];
                 $upload_path = __DIR__ . '/../assets/img/projects/' . $filename;
-                
-                // Convert to webp
-                $image_info = getimagesize($tmp_name);
-                if ($image_info) {
-                    // Check if GD library functions are available
-                    if (!function_exists('imagecreatefromjpeg') || !function_exists('imagewebp')) {
-                        // GD library not available, just move the file as-is
-                        move_uploaded_file($tmp_name, $upload_path);
-                    } else {
-                        $image = null;
-                        switch ($image_info[2]) {
-                            case IMAGETYPE_JPEG:
-                                if (function_exists('imagecreatefromjpeg')) {
-                                    $image = imagecreatefromjpeg($tmp_name);
-                                }
-                                break;
-                            case IMAGETYPE_PNG:
-                                if (function_exists('imagecreatefrompng')) {
-                                    $image = imagecreatefrompng($tmp_name);
-                                }
-                                break;
-                            case IMAGETYPE_GIF:
-                                if (function_exists('imagecreatefromgif')) {
-                                    $image = imagecreatefromgif($tmp_name);
-                                }
-                                break;
-                        }
-                        
-                        if ($image && function_exists('imagewebp')) {
-                            imagewebp($image, $upload_path, 85);
-                            imagedestroy($image);
-                        } elseif ($image) {
-                            // WebP conversion not available, save as original format
-                            switch ($image_info[2]) {
-                                case IMAGETYPE_JPEG:
-                                    imagejpeg($image, str_replace('.webp', '.jpg', $upload_path), 85);
-                                    break;
-                                case IMAGETYPE_PNG:
-                                    imagepng($image, str_replace('.webp', '.png', $upload_path));
-                                    break;
-                                case IMAGETYPE_GIF:
-                                    imagegif($image, str_replace('.webp', '.gif', $upload_path));
-                                    break;
-                            }
-                            imagedestroy($image);
-                        } else {
-                            // No image processing available, move file as-is
-                            move_uploaded_file($tmp_name, $upload_path);
-                        }
-                    }
-                }
+                diar_save_optimized_upload($tmp_name, $upload_path, 1200, 82);
             }
         }
         
@@ -1438,56 +1391,7 @@ if ($is_authenticated) {
                 if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
                     $tmp_name = $_FILES[$field]['tmp_name'];
                     $upload_path = __DIR__ . '/../assets/img/projects/' . $filename;
-                    
-                    $image_info = getimagesize($tmp_name);
-                    if ($image_info) {
-                        // Check if GD library functions are available
-                        if (!function_exists('imagecreatefromjpeg') || !function_exists('imagewebp')) {
-                            // GD library not available, just move the file as-is
-                            move_uploaded_file($tmp_name, $upload_path);
-                        } else {
-                            $image = null;
-                            switch ($image_info[2]) {
-                                case IMAGETYPE_JPEG:
-                                    if (function_exists('imagecreatefromjpeg')) {
-                                        $image = imagecreatefromjpeg($tmp_name);
-                                    }
-                                    break;
-                                case IMAGETYPE_PNG:
-                                    if (function_exists('imagecreatefrompng')) {
-                                        $image = imagecreatefrompng($tmp_name);
-                                    }
-                                    break;
-                                case IMAGETYPE_GIF:
-                                    if (function_exists('imagecreatefromgif')) {
-                                        $image = imagecreatefromgif($tmp_name);
-                                    }
-                                    break;
-                            }
-                            
-                            if ($image && function_exists('imagewebp')) {
-                                imagewebp($image, $upload_path, 85);
-                                imagedestroy($image);
-                            } elseif ($image) {
-                                // WebP conversion not available, save as original format
-                                switch ($image_info[2]) {
-                                    case IMAGETYPE_JPEG:
-                                        imagejpeg($image, str_replace('.webp', '.jpg', $upload_path), 85);
-                                        break;
-                                    case IMAGETYPE_PNG:
-                                        imagepng($image, str_replace('.webp', '.png', $upload_path));
-                                        break;
-                                    case IMAGETYPE_GIF:
-                                        imagegif($image, str_replace('.webp', '.gif', $upload_path));
-                                        break;
-                                }
-                                imagedestroy($image);
-                            } else {
-                                // No image processing available, move file as-is
-                                move_uploaded_file($tmp_name, $upload_path);
-                            }
-                        }
-                    }
+                    diar_save_optimized_upload($tmp_name, $upload_path, 1200, 82);
                 }
             }
             

@@ -154,11 +154,37 @@ h6 {
 
 .header .topbar {
   background-color: var(--background-color);
-  height: 40px;
+  min-height: 40px;
+  height: auto;
   padding: 0;
   font-size: 14px;
   transition: transform 0.3s ease, opacity 0.3s ease;
   transform-origin: top;
+}
+
+.header .topbar .topbar-inner {
+  min-height: 40px;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.header .topbar .contact-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.header .topbar .contact-info i {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header .topbar .contact-info i a,
+.header .topbar .contact-info i .phone-number {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .header .topbar .contact-info i {
@@ -748,7 +774,7 @@ section,
   font-size: 24px;
   font-weight: 700;
   padding: 0;
-  line-height: 1px;
+  line-height: 1.35;
   margin: 0;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -770,6 +796,9 @@ section,
   font-size: 16px;
   font-weight: 500;
   font-family: var(--heading-font);
+  line-height: 1.5;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /*--------------------------------------------------------------
@@ -951,6 +980,11 @@ section,
   height: auto;
   border-radius: 8px;
   transition: transform 0.5s ease;
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--background-color));
+}
+
+img.diar-photo {
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--background-color));
 }
 
 .hero .hero-image:hover img {
@@ -1791,15 +1825,29 @@ section,
 }
 
 /* Star rating selector (homepage testimonial submit) */
+.testimonials .form-container .rating-field-group {
+  margin-bottom: 0;
+}
+
+.testimonials .form-container .rating-field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--heading-color);
+}
+
 .testimonials .form-container .testimonial-rating-control {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--default-color), transparent 80%);
   background: var(--surface-color);
-  height: calc(3.5rem + 3px);
+  min-height: 3.25rem;
+  width: 100%;
   flex-direction: row-reverse;
 }
 
@@ -2011,11 +2059,12 @@ section,
 }
 
 .certifications .content h2 {
-  font-size: 2.75rem;
+  font-size: clamp(1.35rem, 4.5vw, 2.75rem);
   font-weight: 600;
   margin-bottom: 1.5rem;
   color: var(--heading-color);
-  line-height: 1.2;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .certifications .content p {
@@ -2178,8 +2227,9 @@ section,
   font-weight: 700;
   color: var(--heading-color);
   margin-bottom: 0.15rem;
-  line-height: 1.1;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .certifications .achievements-banner .achievement-item p {
@@ -2189,7 +2239,9 @@ section,
   text-transform: uppercase;
   letter-spacing: 0.8px;
   font-weight: 500;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 992px) {
@@ -5115,4 +5167,164 @@ section,
 --------------------------------------------------------------*/
 .starter-section {
   /* Add your styles here */
+}
+
+/*--------------------------------------------------------------
+# Mobile & tablet polish (readability, topbar, overlap fixes)
+--------------------------------------------------------------*/
+@media (max-width: 767.98px) {
+  .header .topbar {
+    padding: 6px 0;
+  }
+
+  .header .topbar .topbar-inner {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .header .topbar .language-switcher-mobile {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+
+  .header .topbar .contact-info {
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    width: auto;
+    max-width: calc(100% - 104px);
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  body[dir="rtl"] .header .topbar .contact-info {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .header .topbar .contact-info .topbar-email,
+  .header .topbar .contact-info .topbar-phone {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
+  .header .topbar .contact-info .topbar-email a {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .header .topbar .contact-info .topbar-phone {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .header .logo img,
+  .header .diar360-logo img {
+    max-height: 52px !important;
+  }
+
+  .header .branding {
+    padding: 6px 0;
+  }
+
+  .section-title {
+    padding-bottom: 40px;
+  }
+
+  .section-title h2 {
+    font-size: clamp(1rem, 4.2vw, 1.25rem);
+    line-height: 1.35;
+  }
+
+  .section-title h2::after {
+    display: block;
+    margin: 10px 0 0;
+    width: 72px;
+  }
+
+  .section-title p {
+    font-size: 14px;
+  }
+
+  .testimonials .testimonial-slide {
+    padding: 1.75rem 1.25rem;
+    min-height: 0;
+  }
+
+  .testimonials .testimonial-body p {
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .testimonials .testimonial-header {
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .testimonials .author-details {
+    text-align: center;
+  }
+
+  .testimonials .author-info {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .contact-form-panel .form-container {
+    padding: 1.25rem;
+  }
+
+  .contact-form-panel .form-container h3 {
+    font-size: 1.25rem;
+    line-height: 1.35;
+  }
+
+  .certifications .certification-grid {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .certifications .achievements-banner .row {
+    row-gap: 0.75rem;
+  }
+
+  .certifications .achievements-banner .achievement-item {
+    text-align: center;
+  }
+
+  .main {
+    padding-bottom: 4.5rem;
+  }
+
+  .scroll-top {
+    bottom: 1rem;
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+  }
+
+  h1, .hero h1 {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    line-height: 1.25;
+  }
+
+  h2, h3, h4 {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .header .topbar .contact-info .topbar-email {
+    display: none;
+  }
+
+  .header .topbar .contact-info {
+    max-width: calc(100% - 98px);
+  }
 }

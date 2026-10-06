@@ -259,6 +259,8 @@ function render_team_compact_quick_contact(array $member) {
     }
 }
 
+require_once __DIR__ . '/image-optimize.php';
+
 // Include language functions
 require_once __DIR__ . '/language.php';
 ?>

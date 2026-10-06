@@ -129,7 +129,7 @@ function homeProjectStatusLabel($status) {
 
           <div class="col-lg-6" data-aos="fade-left" data-aos-delay="300">
             <div class="hero-image">
-              <img src="<?php echo asset('img/construction/showcase-3.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid" decoding="async" fetchpriority="high">
+              <img src="<?php echo asset('img/construction/showcase-3.webp'); ?>" alt="<?php echo t('construction_project'); ?>" class="img-fluid diar-photo" width="960" height="720" loading="eager" decoding="sync" fetchpriority="high">
               <div class="image-badge">
                 <span><?php echo t('hero_iso_certified'); ?></span>
                 <p><?php echo t('hero_certified_construction'); ?></p>
@@ -621,8 +621,9 @@ function homeProjectStatusLabel($status) {
                         <label for="tCompany"><?php echo ($currentLang === 'ar') ? 'الشركة (اختياري)' : 'Company (optional)'; ?></label>
                       </div>
                     </div>
-                    <div class="col-md-6">
-                      <div class="form-floating">
+                    <div class="col-12 col-md-6">
+                      <div class="rating-field-group">
+                        <label class="form-label rating-field-label" for="tRating5"><?php echo ($currentLang === 'ar') ? 'التقييم' : 'Rating'; ?></label>
                         <div class="testimonial-rating-control" aria-label="<?php echo ($currentLang === 'ar') ? 'اختر التقييم' : 'Choose rating'; ?>">
                           <input type="radio" name="rating" id="tRating5" value="5" checked>
                           <label for="tRating5" title="5"><i class="bi bi-star-fill"></i></label>
@@ -639,7 +640,6 @@ function homeProjectStatusLabel($status) {
                           <input type="radio" name="rating" id="tRating1" value="1">
                           <label for="tRating1" title="1"><i class="bi bi-star-fill"></i></label>
                         </div>
-                        <label><?php echo ($currentLang === 'ar') ? 'التقييم' : 'Rating'; ?></label>
                       </div>
                     </div>
                     <div class="col-12">
